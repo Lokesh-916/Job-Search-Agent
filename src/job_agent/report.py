@@ -178,6 +178,32 @@ def company_record(company: dict, research: dict[str, Any] | None, open_fit: int
     }
 
 
+def research_columns(store: Store) -> CompanyResearch:
+    """Stored research (lists and all) -> the flat text fields the workbook shows."""
+
+    def lookup(company_id: str) -> dict[str, Any] | None:
+        r = store.get_research(company_id)
+        if not r:
+            return None
+        sentiment = " · ".join(x for x in (r.get("rating"), r.get("employee_sentiment")) if x)
+        return {
+            "product": r.get("product"),
+            "funding": "; ".join(x for x in (r.get("funding"), r.get("traction")) if x),
+            "employee_sentiment": sentiment,
+            "pros": "; ".join(r.get("pros") or []),
+            "cons": "; ".join(r.get("cons") or []),
+            "interview_experiences": " ".join(
+                x for x in (r.get("interview_experiences"), f"(DSA: {r.get('dsa_heavy')})") if x
+            ),
+            "salary_data": "; ".join(r.get("salary_data") or []),
+            "news": "; ".join(r.get("news") or []),
+            "outreach_draft": r.get("outreach_draft"),
+            "sources": "\n".join(r.get("sources") or []),
+        }
+
+    return lookup
+
+
 def build_report(
     store: Store,
     settings: Settings,
