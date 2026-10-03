@@ -63,6 +63,7 @@ class Scoring(BaseModel):
 class ResearchConfig(BaseModel):
     cache_days: int = 14
     max_tool_calls: int = 8
+    agentic: bool = True  # False = gather + one summarising call (faster, fewer moving parts)
     searxng_url: str | None = None
 
 

@@ -53,6 +53,7 @@ scoring:                       # weights, sum to 100
 research:
   cache_days: 14
   max_tool_calls: 8
+  agentic: true                # false = fixed searches + one summary call (faster)
   searxng_url: http://100.104.107.17:8888
 
 browser:
