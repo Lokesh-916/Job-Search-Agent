@@ -25,7 +25,8 @@ preflight (VRAM guard, session valid?)
  → export (daily .xlsx) → notify (Telegram + file)
 ```
 - **LLM vs code split.** The LLM handles judgment: triage, extraction, eligibility, DSA risk, fit, salary estimate, summaries and outreach drafts. Code handles arithmetic and plumbing: currency conversion, weighted score, dedupe, storage and export.
-- **Hard gates:** not open to India → `Rejected` tab. Below 9 LPA → `Rejected`. Unclear eligibility → `Needs Review` (never silently dropped).
+- **Eligibility (no visa or relocation possible):** keep only India onsite/hybrid roles or fully remote roles workable from India. Remote roles needing US work authorization are excluded at the source (Algolia filter). Anything else not open to India goes to `Rejected`, as do roles below 9 LPA. Unclear cases go to `Needs Review` (never silently dropped).
+- **Role:** ignore titles and WaaS role tags. Keep anything that involves building agents, LLM apps or AI-powered products, judged by the LLM from the posting content.
 - **Failure handling:** a schema-validation failure gets one retry with the error passed back to the model, then the job goes to `Needs Review`. LangGraph checkpoints (SQLite) let a crashed run resume.
 
 ## Company research sub-agent
