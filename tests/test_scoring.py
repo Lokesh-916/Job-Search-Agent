@@ -93,3 +93,12 @@ def test_penalties():
 
 def test_missing_assessment_needs_review():
     assert run(ex(), None).bucket == "needs_review"
+
+
+def test_city_preference_orders_india_offices_but_remote_wins():
+    def onsite(city):
+        return run(ex(work_mode="onsite", locations=[city]), assess(), country="IN").score
+
+    hyd, blr, pune = onsite("Hyderabad, Telangana"), onsite("Bangalore"), onsite("Pune")
+    assert hyd > blr > pune
+    assert run(ex(), assess(), country="IN").score > hyd
