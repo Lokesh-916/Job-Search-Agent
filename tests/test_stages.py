@@ -1,7 +1,7 @@
 import asyncio
 
 from job_agent.settings import Settings
-from job_agent.stages import run_extract, run_triage, stage_result
+from job_agent.stages import run_assess, run_extract, run_triage, stage_result
 from job_agent.store import Store
 from tests.fakes import FakeStructuredLLM
 
@@ -68,3 +68,49 @@ def test_failures_are_recorded_and_retried(tmp_path):
         assert len(report.failed) == 2 and report.ok == 0
         report = asyncio.run(run_triage(store, settings, {}, FakeStructuredLLM(triage_reply)))
         assert report.ok == 2
+
+
+ASSESSMENT = {
+    "fit_score": 85,
+    "why_fit": "Builds agents daily",
+    "dsa_risk": "low",
+    "sponsorship_credible": "not_applicable",
+    "joining_fit": "ok",
+    "verdict": "apply_now",
+    "pitch": "I ship extraction agents in prod",
+}
+
+
+def test_assess_sees_profile_facts_and_research_and_recaches(tmp_path):
+    settings = Settings()
+    with seeded_store(tmp_path) as store:
+        asyncio.run(run_triage(store, settings, {}, FakeStructuredLLM(triage_reply)))
+        extracted = {**EXTRACTION, "salary_min": 30000, "salary_currency": "USD"}
+        asyncio.run(run_extract(store, settings, FakeStructuredLLM(lambda m: extracted)))
+
+        judge = FakeStructuredLLM(lambda m: ASSESSMENT)
+        profile = {"skills": {"genai": ["LangGraph"]}}
+        rates = {"USD": 96.0, "INR": 1.0}
+        report = asyncio.run(run_assess(store, settings, profile, rates, llm=judge))
+        assert (report.todo, report.ok) == (1, 1)
+        prompt = judge.calls[0][-1].content
+        assert "LangGraph" in prompt and "28.8-28.8 LPA" in prompt and "No research" in prompt
+
+        # Same inputs: cached. New research about the company: re-assessed.
+        assert asyncio.run(run_assess(store, settings, profile, rates, llm=judge)).todo == 0
+        report = asyncio.run(
+            run_assess(
+                store, settings, profile, rates, research=lambda r: "Great reviews", llm=judge
+            )
+        )
+        assert report.todo == 1 and "Great reviews" in judge.calls[-1][-1].content
+
+
+def test_assess_skips_hard_rejects(tmp_path):
+    settings = Settings()
+    with seeded_store(tmp_path) as store:
+        asyncio.run(run_triage(store, settings, {}, FakeStructuredLLM(triage_reply)))
+        us_only = {**EXTRACTION, "india_eligible": "no", "visa_sponsorship": "not_offered"}
+        asyncio.run(run_extract(store, settings, FakeStructuredLLM(lambda m: us_only)))
+        judge = FakeStructuredLLM(lambda m: ASSESSMENT)
+        assert asyncio.run(run_assess(store, settings, {}, {}, llm=judge)).todo == 0
