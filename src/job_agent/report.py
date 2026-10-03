@@ -1,0 +1,214 @@
+"""Assemble one flat record per job (and per company) from everything the pipeline stored."""
+
+from __future__ import annotations
+
+import json
+import sqlite3
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from typing import Any
+
+from job_agent.schemas import Assessment, Extraction, Triage
+from job_agent.scoring import Scored, score_job
+from job_agent.settings import Settings
+from job_agent.stages import stage_result
+from job_agent.store import Store
+
+WAAS_JOB_URL = "https://www.workatastartup.com/jobs/{id}"
+CompanyResearch = Callable[[str], dict[str, Any] | None]  # company_id -> research fields
+
+
+@dataclass
+class Report:
+    jobs: list[dict[str, Any]] = field(default_factory=list)
+    companies: list[dict[str, Any]] = field(default_factory=list)
+
+
+def _join(items: list[str] | None) -> str:
+    return ", ".join(items or [])
+
+
+def _lpa_range(lo: float | None, hi: float | None) -> str:
+    if lo is None and hi is None:
+        return ""
+    if lo is None or hi is None or lo == hi:
+        return f"₹{lo or hi:g} L"
+    return f"₹{lo:g}–{hi:g} L"
+
+
+def _tier(score: float | None, threshold: float) -> str:
+    if score is None:
+        return ""
+    return "🔥" if score >= threshold else "✅" if score >= 60 else "🤔"
+
+
+def _founders(company: dict) -> str:
+    return "; ".join(
+        f"{f.get('full_name')}" + (f" ({f['linkedin']})" if f.get("linkedin") else "")
+        for f in company.get("founders") or []
+    )
+
+
+def _parse[T](model: type[T], raw: dict | None) -> T | None:
+    return model.model_validate(raw) if raw else None  # type: ignore[attr-defined]
+
+
+def job_record(
+    row: sqlite3.Row,
+    triage: Triage | None,
+    ex: Extraction | None,
+    a: Assessment | None,
+    scored: Scored,
+    status: sqlite3.Row | None,
+    research: dict[str, Any] | None,
+    run_date: str,
+    threshold: float,
+) -> dict[str, Any]:
+    hit = json.loads(row["hit_json"] or "{}")
+    detail = json.loads(row["detail_json"] or "{}")
+    job, company = detail.get("job") or {}, detail.get("company") or {}
+    posted = (hit.get("created_at") or "")[:10]
+    age = (
+        (datetime.fromisoformat(run_date) - datetime.fromisoformat(posted)).days if posted else None
+    )
+    research = research or {}
+    return {
+        # Tracking
+        "Score": scored.score,
+        "Tier": _tier(scored.score, threshold),
+        "New": "🆕" if row["first_seen"][:10] == run_date else "",
+        "Status": status["status"] if status else "",
+        "My Notes": status["notes"] if status else "",
+        "Applied On": status["applied_on"] if status else "",
+        # Role
+        "Title": job.get("title") or row["title"],
+        "Company": row["company_name"],
+        "Category": (ex.category if ex else triage.category if triage else ""),
+        "Builds AI?": ("Yes – " + (ex.ai_work or ""))
+        if ex and ex.builds_ai
+        else ("No" if ex else ""),
+        "Apply URL": WAAS_JOB_URL.format(id=row["job_id"]),
+        "Job URL": row["url"],
+        "Posted": posted,
+        "Age (days)": age,
+        "Openings at company": len(company.get("open_jobs") or []),
+        # Location
+        "Work mode": ex.work_mode if ex else hit.get("remote"),
+        "Locations": _join(ex.locations) if ex else job.get("location"),
+        "India eligible": ex.india_eligible if ex else "",
+        "Eligibility evidence": ex.india_evidence if ex else "",
+        "Timezone / hours": ex.timezone_overlap if ex else "",
+        "Visa": job.get("sponsorsVisa") or "",
+        # Pay
+        "Listed salary": job.get("salaryRange") or "",
+        "Listed (₹ LPA)": _lpa_range(*scored.listed_lpa),
+        "Equity": job.get("equityRange") or (ex.equity if ex else "") or "",
+        "Realistic (₹ LPA)": _lpa_range(a.realistic_salary_lpa_min, a.realistic_salary_lpa_max)
+        if a
+        else "",
+        "Pay confidence": a.salary_confidence if a else "",
+        "Pay basis": a.salary_basis if a else "",
+        # Requirements
+        "Experience": job.get("minExperience") or "",
+        "Fresher OK?": ex.fresher_ok if ex else "",
+        "Must-have skills": _join(ex.must_have_skills) if ex else "",
+        "Nice-to-have": _join(ex.nice_to_have_skills) if ex else "",
+        "Tech stack": _join(ex.tech_stack) if ex else "",
+        "Gaps": _join(a.gaps) if a else "",
+        # Interview
+        "Interview process": ex.interview_process if ex else "",
+        "DSA risk": a.dsa_risk if a else "",
+        "DSA evidence": a.dsa_evidence if a else "",
+        "Take-home / practical?": {True: "Yes", False: "No"}.get(ex.take_home_or_practical, "")
+        if ex
+        else "",
+        # Fit
+        "Verdict": a.verdict if a else "",
+        "Fit score": a.fit_score if a else None,
+        "Why I fit": a.why_fit if a else "",
+        "Pitch": a.pitch if a else "",
+        "Learning upside": a.learning_upside if a else "",
+        "Joining fit": a.joining_fit if a else "",
+        "Red flags": _join(ex.red_flags) if ex else "",
+        # Company
+        "What they do": ex.summary if ex else company.get("one_liner") or "",
+        "YC batch": company.get("batch") or "",
+        "Stage": hit.get("company_waas_stage") or "",
+        "Team size": company.get("team_size") or hit.get("company_team_size"),
+        "HQ": company.get("pretty_location") or "",
+        "Employee sentiment": research.get("employee_sentiment") or "",
+        "Founders": _founders(company),
+        # Meta
+        "Reject reason": scored.reject_reason or "",
+        "First seen": row["first_seen"][:10],
+        "Job ID": row["job_id"],
+        "_bucket": scored.bucket,
+        "_company_id": row["company_id"],
+    }
+
+
+def company_record(company: dict, research: dict[str, Any] | None, open_fit: int) -> dict:
+    research = research or {}
+    news = company.get("company_news") or []
+    return {
+        "Company": company.get("name"),
+        "Website": company.get("website") or company.get("website_url") or "",
+        "One-liner": company.get("one_liner") or "",
+        "What they do": research.get("product") or company.get("description") or "",
+        "YC batch": company.get("batch") or "",
+        "Team size": company.get("team_size"),
+        "HQ": company.get("pretty_location") or "",
+        "Founders": _founders(company),
+        "Open roles": len(company.get("open_jobs") or []),
+        "Roles in this sheet": open_fit,
+        "Funding / stage": research.get("funding") or "",
+        "Employee sentiment": research.get("employee_sentiment") or "",
+        "Pros": research.get("pros") or "",
+        "Cons": research.get("cons") or "",
+        "Interview experiences": research.get("interview_experiences") or "",
+        "Salary data points": research.get("salary_data") or "",
+        "Recent news": "; ".join(n.get("title", "") for n in news[:3] if isinstance(n, dict))
+        or research.get("news")
+        or "",
+        "Outreach draft": research.get("outreach_draft") or "",
+        "Sources": research.get("sources") or "",
+    }
+
+
+def build_report(
+    store: Store,
+    settings: Settings,
+    rates: dict[str, float],
+    research: CompanyResearch = lambda company_id: None,
+    run_date: str | None = None,
+) -> Report:
+    run_date = run_date or datetime.now(UTC).date().isoformat()
+    statuses = store.user_status()
+    report = Report()
+    companies: dict[str, tuple[dict, int]] = {}
+    for row in store.open_jobs():
+        job_id = row["job_id"]
+        triage = _parse(Triage, stage_result(store, job_id, "triage"))
+        ex = _parse(Extraction, stage_result(store, job_id, "extract"))
+        a = _parse(Assessment, stage_result(store, job_id, "assess"))
+        detail = json.loads(row["detail_json"] or "{}")
+        company = detail.get("company") or {}
+        scored = score_job(
+            job_id, triage, ex, a, company.get("country"), rates,
+            settings.preferences, settings.scoring,
+        )  # fmt: skip
+        rec = job_record(
+            row, triage, ex, a, scored, statuses.get(job_id),
+            research(row["company_id"]), run_date, settings.scoring.top_pick_threshold,
+        )  # fmt: skip
+        report.jobs.append(rec)
+        if scored.bucket != "rejected":
+            prev = companies.get(row["company_id"], (company, 0))
+            companies[row["company_id"]] = (company, prev[1] + 1)
+    report.jobs.sort(key=lambda r: (r["Score"] is None, -(r["Score"] or 0)))
+    report.companies = sorted(
+        (company_record(c, research(cid), n) for cid, (c, n) in companies.items()),
+        key=lambda r: -r["Roles in this sheet"],
+    )
+    return report
