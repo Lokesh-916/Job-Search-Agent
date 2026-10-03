@@ -57,3 +57,13 @@ def test_user_status_roundtrip(tmp_path):
         s.save_user_status({"7": {"status": "Interviewing", "notes": "ping founder"}})
         row = s.user_status()["7"]
         assert row["status"] == "Interviewing" and row["notes"] == "ping founder"
+
+
+def test_company_research_cache(tmp_path):
+    with Store(tmp_path / "j.db") as s:
+        assert not s.research_fresh("9", "m", 14) and s.get_research("9") is None
+        s.save_research("9", "Acme", "m", error="timeout")
+        assert not s.research_fresh("9", "m", 14) and s.get_research("9") is None
+        s.save_research("9", "Acme", "m", {"product": "agents"})
+        assert s.research_fresh("9", "m", 14) and not s.research_fresh("9", "other", 14)
+        assert s.get_research("9") == {"product": "agents"}

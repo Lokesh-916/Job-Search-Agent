@@ -49,6 +49,16 @@ CREATE TABLE IF NOT EXISTS user_status (
     applied_on TEXT,
     updated_at TEXT NOT NULL
 );
+
+-- Company research is shared by all of a company's jobs and reused for `cache_days`.
+CREATE TABLE IF NOT EXISTS company_research (
+    company_id    TEXT PRIMARY KEY,
+    name          TEXT,
+    model         TEXT NOT NULL,
+    research_json TEXT,
+    error         TEXT,
+    researched_at TEXT NOT NULL
+);
 """
 
 
@@ -191,6 +201,39 @@ class Store:
 
     def user_status(self) -> dict[str, sqlite3.Row]:
         return {r["job_id"]: r for r in self.db.execute("SELECT * FROM user_status")}
+
+    def research_fresh(self, company_id: str, model: str, cache_days: int) -> bool:
+        cutoff = (datetime.now(UTC) - timedelta(days=cache_days)).isoformat("T", "seconds")
+        row = self.db.execute(
+            "SELECT 1 FROM company_research WHERE company_id=? AND model=? AND error IS NULL"
+            " AND researched_at >= ?",
+            (company_id, model, cutoff),
+        ).fetchone()
+        return row is not None
+
+    def save_research(
+        self,
+        company_id: str,
+        name: str,
+        model: str,
+        research: dict[str, Any] | None = None,
+        error: str | None = None,
+    ) -> None:
+        with self.db:
+            self.db.execute(
+                """INSERT OR REPLACE INTO company_research
+                   (company_id, name, model, research_json, error, researched_at)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (company_id, name, model,
+                 json.dumps(research) if research is not None else None, error, now_iso()),
+            )  # fmt: skip
+
+    def get_research(self, company_id: str) -> dict[str, Any] | None:
+        row = self.db.execute(
+            "SELECT research_json FROM company_research WHERE company_id=? AND error IS NULL",
+            (company_id,),
+        ).fetchone()
+        return json.loads(row[0]) if row and row[0] else None
 
     def get(self, job_id: str) -> sqlite3.Row | None:
         return self.db.execute("SELECT * FROM jobs WHERE job_id=?", (job_id,)).fetchone()
