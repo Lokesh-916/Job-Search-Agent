@@ -27,6 +27,19 @@ CREATE TABLE IF NOT EXISTS jobs (
     closed            INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS jobs_company ON jobs(company_id);
+
+-- One row per (job, pipeline stage). `input_hash` + `model` make results cacheable:
+-- a stage is redone only when the posting changed or a different model is configured.
+CREATE TABLE IF NOT EXISTS llm_results (
+    job_id      TEXT NOT NULL,
+    stage       TEXT NOT NULL,
+    model       TEXT NOT NULL,
+    input_hash  TEXT,
+    result_json TEXT,
+    error       TEXT,
+    created_at  TEXT NOT NULL,
+    PRIMARY KEY (job_id, stage)
+);
 """
 
 
@@ -114,6 +127,46 @@ class Store:
                 (source, run_started),
             )
         return cur.rowcount
+
+    def open_jobs(self, source: str | None = None) -> list[sqlite3.Row]:
+        sql = "SELECT * FROM jobs WHERE closed=0 AND detail_json IS NOT NULL"
+        args: tuple = ()
+        if source:
+            sql, args = sql + " AND source=?", (source,)
+        return self.db.execute(sql + " ORDER BY first_seen DESC", args).fetchall()
+
+    def needs_stage(self, row: sqlite3.Row, stage: str, model: str) -> bool:
+        """True unless a successful result exists for this exact posting and model."""
+        res = self.get_result(row["job_id"], stage)
+        return not (
+            res
+            and res["error"] is None
+            and res["model"] == model
+            and res["input_hash"] == row["content_hash"]
+        )
+
+    def get_result(self, job_id: str, stage: str) -> sqlite3.Row | None:
+        return self.db.execute(
+            "SELECT * FROM llm_results WHERE job_id=? AND stage=?", (job_id, stage)
+        ).fetchone()
+
+    def save_result(
+        self,
+        job_id: str,
+        stage: str,
+        model: str,
+        input_hash: str | None,
+        result: dict[str, Any] | None = None,
+        error: str | None = None,
+    ) -> None:
+        with self.db:
+            self.db.execute(
+                """INSERT OR REPLACE INTO llm_results
+                   (job_id, stage, model, input_hash, result_json, error, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (job_id, stage, model, input_hash,
+                 json.dumps(result) if result is not None else None, error, now_iso()),
+            )  # fmt: skip
 
     def get(self, job_id: str) -> sqlite3.Row | None:
         return self.db.execute("SELECT * FROM jobs WHERE job_id=?", (job_id,)).fetchone()

@@ -28,3 +28,21 @@ def test_close_unseen(tmp_path):
         assert s.get("7")["closed"] == 1
         s.upsert_hits("waas", [HIT], "2026-10-03T00:00:00+00:00")
         assert s.get("7")["closed"] == 0
+
+
+def test_stage_cache_invalidation(tmp_path):
+    with Store(tmp_path / "j.db") as s:
+        s.upsert_hits("waas", [HIT], "2026-10-01T00:00:00+00:00")
+        s.save_detail("7", {"job": {"salary": "100k"}}, "2026-10-01T00:00:00+00:00")
+        row = s.get("7")
+        assert s.needs_stage(row, "triage", "ollama:qwen3:14b")
+
+        s.save_result("7", "triage", "ollama:qwen3:14b", row["content_hash"], {"keep": True})
+        assert not s.needs_stage(row, "triage", "ollama:qwen3:14b")
+        assert s.needs_stage(row, "triage", "ollama:gpt-oss:20b")  # model swapped
+
+        s.save_detail("7", {"job": {"salary": "150k"}}, "2026-10-02T00:00:00+00:00")
+        assert s.needs_stage(s.get("7"), "triage", "ollama:qwen3:14b")  # posting changed
+
+        s.save_result("7", "triage", "ollama:qwen3:14b", s.get("7")["content_hash"], error="x")
+        assert s.needs_stage(s.get("7"), "triage", "ollama:qwen3:14b")  # failures retry
