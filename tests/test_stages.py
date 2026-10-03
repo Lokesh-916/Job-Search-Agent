@@ -114,3 +114,29 @@ def test_assess_skips_hard_rejects(tmp_path):
         asyncio.run(run_extract(store, settings, FakeStructuredLLM(lambda m: us_only)))
         judge = FakeStructuredLLM(lambda m: ASSESSMENT)
         assert asyncio.run(run_assess(store, settings, {}, {}, llm=judge)).todo == 0
+
+
+def test_research_once_per_company_and_cached(tmp_path):
+    from job_agent.schemas import CompanyResearch
+    from job_agent.stages import research_brief, run_research
+
+    settings = Settings()
+    calls = []
+
+    async def fake_research(company, llm, cfg):
+        calls.append(company.get("name"))
+        return CompanyResearch(product="Invoice agents", outreach_draft="Hi", sources=["u"])
+
+    with seeded_store(tmp_path) as store:
+        asyncio.run(run_triage(store, settings, {}, FakeStructuredLLM(triage_reply)))
+        asyncio.run(run_extract(store, settings, FakeStructuredLLM(lambda m: EXTRACTION)))
+        report = asyncio.run(
+            run_research(store, settings, {}, llm=object(), research_fn=fake_research)
+        )
+        assert (report.todo, report.ok) == (1, 1)
+        again = asyncio.run(
+            run_research(store, settings, {}, llm=object(), research_fn=fake_research)
+        )
+        assert again.todo == 0 and len(calls) == 1
+        brief = research_brief(store.get_research(store.get("1")["company_id"]))
+        assert "Invoice agents" in brief and "outreach" not in brief
