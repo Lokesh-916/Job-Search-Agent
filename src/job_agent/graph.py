@@ -1,6 +1,6 @@
 """The daily pipeline as a LangGraph graph.
 
-preflight -> fetch -> triage -> extract -> assess -> export -> notify
+preflight -> fetch -> triage -> extract -> research -> assess -> export -> notify
 
 Every LLM stage is cached in SQLite (see stages.py), so a crashed or interrupted run
 simply resumes on the next invocation without redoing finished work.
@@ -21,10 +21,10 @@ from job_agent.fx import load_inr_rates
 from job_agent.notify import NotifyError, Telegram
 from job_agent.preflight import check_ollama, check_session, check_vram
 from job_agent.profile import load_profile
-from job_agent.report import build_report
+from job_agent.report import build_report, research_columns
 from job_agent.settings import Settings
 from job_agent.sources.waas.fetch import fetch_waas
-from job_agent.stages import run_assess, run_extract, run_triage
+from job_agent.stages import research_brief, run_assess, run_extract, run_research, run_triage
 from job_agent.store import Store
 
 
@@ -71,16 +71,27 @@ def build_graph(settings: Settings, store: Store):
         r = await run_extract(store, settings, limit=state["options"].get("limit"))
         return {"log": [("Extract", f"{r.ok}/{r.todo} done, {len(r.failed)} failed")]}
 
+    async def research(state: PipelineState) -> dict:
+        rates = load_inr_rates(rates_path)
+        r = await run_research(store, settings, rates, limit=state["options"].get("limit"))
+        return {"log": [("Research", f"{r.ok}/{r.todo} companies, {len(r.failed)} failed")]}
+
     async def assess(state: PipelineState) -> dict:
         rates = load_inr_rates(rates_path)
-        r = await run_assess(store, settings, profile, rates, limit=state["options"].get("limit"))
+        r = await run_assess(
+            store, settings, profile, rates,
+            research=lambda row: research_brief(store.get_research(row["company_id"])),
+            limit=state["options"].get("limit"),
+        )  # fmt: skip
         return {"log": [("Assess", f"{r.ok}/{r.todo} done, {len(r.failed)} failed")]}
 
     def export(state: PipelineState) -> dict:
         out_dir = settings.paths.output_dir
         store.save_user_status(read_user_status(out_dir))
         rates = load_inr_rates(rates_path)
-        report = build_report(store, settings, rates, run_date=state["run_date"])
+        report = build_report(
+            store, settings, rates, research_columns(store), run_date=state["run_date"]
+        )
         minutes = round((time.monotonic() - state["started"]) / 60, 1)
         info = [
             ("Run date", state["run_date"]),
@@ -115,13 +126,14 @@ def build_graph(settings: Settings, store: Store):
 
     g = StateGraph(PipelineState)
     for name, fn in [("preflight", preflight), ("fetch", fetch), ("triage", triage),
-                     ("extract", extract), ("assess", assess), ("export", export),
-                     ("notify", notify)]:  # fmt: skip
+                     ("extract", extract), ("research", research), ("assess", assess),
+                     ("export", export), ("notify", notify)]:  # fmt: skip
         g.add_node(name, fn)
     g.add_edge(START, "preflight")
     g.add_conditional_edges("preflight", lambda s: "notify" if s.get("abort") else "fetch")
-    for a, b in [("fetch", "triage"), ("triage", "extract"), ("extract", "assess"),
-                 ("assess", "export"), ("export", "notify"), ("notify", END)]:  # fmt: skip
+    for a, b in [("fetch", "triage"), ("triage", "extract"), ("extract", "research"),
+                 ("research", "assess"), ("assess", "export"), ("export", "notify"),
+                 ("notify", END)]:  # fmt: skip
         g.add_edge(a, b)
     return g.compile()
 
