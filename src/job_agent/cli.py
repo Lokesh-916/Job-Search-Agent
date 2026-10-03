@@ -64,6 +64,33 @@ def fetch() -> None:
         console.print(f"  [red]{job_id}[/] {err}")
 
 
+@app.command()
+def report() -> None:
+    """Write today's workbook from what's already in the database (no LLM calls)."""
+    from datetime import date
+
+    from job_agent.export import read_user_status, workbook_path, write_workbook
+    from job_agent.fx import load_inr_rates
+    from job_agent.report import build_report
+    from job_agent.store import Store
+
+    settings = get_settings()
+    out_dir, today = settings.paths.output_dir, date.today().isoformat()
+    with Store(settings.paths.data_dir / "jobs.db") as store:
+        store.save_user_status(read_user_status(out_dir))
+        rates = load_inr_rates(settings.paths.data_dir / "fx.json")
+        rep = build_report(store, settings, rates, run_date=today)
+    info = [("Run date", today), ("Model", settings.llm.model), ("Jobs", len(rep.jobs)),
+            ("USD → INR", round(rates.get("USD", 0), 2))]  # fmt: skip
+    path = workbook_path(out_dir, today)
+    try:
+        write_workbook(rep, path, settings.scoring.top_pick_threshold, info)
+    except PermissionError:
+        console.print(f"[red]{path} is open in Excel.[/] Close it and run again.")
+        raise typer.Exit(1) from None
+    console.print(f"[green]Wrote[/] {path.resolve()}")
+
+
 @app.command("notify-test")
 def notify_test() -> None:
     """Send a test message to the configured Telegram chat."""
