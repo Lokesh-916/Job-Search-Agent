@@ -99,3 +99,42 @@ class Extraction(BaseModel):
     summary: str = Field(
         description="Two lines: what the company does and what this person would do"
     )
+
+
+Level = Literal["low", "medium", "high", "unknown"]
+
+
+class Assessment(BaseModel):
+    """Judgment of one job for one candidate, grounded in the posting and company research."""
+
+    fit_score: int = Field(
+        ge=0, le=100, description="How well the candidate fits (skills, level, interests)"
+    )
+    why_fit: str = Field(description="One or two lines: the strongest reasons this candidate fits")
+    gaps: list[str] = Field(default_factory=list, description="Missing skills/requirements, if any")
+    learning_upside: str | None = Field(None, description="What the candidate would learn here")
+
+    dsa_risk: Level = Field(description="Likelihood of LeetCode/DSA-heavy interviews")
+    dsa_evidence: str | None = Field(None, description="What the dsa_risk judgment is based on")
+
+    realistic_salary_lpa_min: float | None = Field(
+        None, description="Realistic offer for THIS candidate, INR lakhs per annum"
+    )
+    realistic_salary_lpa_max: float | None = None
+    salary_confidence: Level = "unknown"
+    salary_basis: str | None = Field(
+        None, description="Why: listed range, level, stage, data points"
+    )
+
+    sponsorship_credible: Literal["yes", "no", "unclear", "not_applicable"] = Field(
+        description="If relocation abroad is needed: is visa sponsorship for a new grad credible?"
+    )
+    joining_fit: Literal["ok", "tight", "conflict", "unknown"] = Field(
+        description="Does the required start date work with the candidate's availability?"
+    )
+    company_quality: int | None = Field(
+        None, ge=0, le=10, description="Momentum, funding, sentiment; null if unknown"
+    )
+
+    verdict: Literal["apply_now", "worth_a_shot", "stretch", "skip"]
+    pitch: str = Field(description="One line the candidate could lead with when applying")
