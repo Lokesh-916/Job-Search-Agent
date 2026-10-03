@@ -20,13 +20,15 @@ llm:
 sources:
   waas:
     roles: []                    # empty = any role; WaaS role tags are noisy, the LLM judges fit
-    job_types: [fulltime, intern]
+    job_types: [fulltime]
     max_min_experience: 1        # Algolia `min_experience` facet; the LLM re-checks the text
     remote: ["yes", "only"]      # remote OK / remote only ...
     locations: [IN]              # ... OR located here (Algolia `locations_for_search`)
     # Remote jobs must not require US work authorization (no visa/relocation possible).
     # Jobs located in `locations` are kept regardless.
     exclude_us_auth_required: true
+    # Also fetch onsite jobs abroad that offer visa sponsorship; the LLM + research judge credibility.
+    include_visa_sponsored: true
     concurrency: 4               # parallel job-page requests
     request_delay_s: 0.5         # politeness delay per request
     refetch_after_days: 3        # re-download details of known jobs after this long
@@ -63,6 +65,6 @@ vram:
 
 paths:
   data_dir: data
-  output_dir: output
+  output_dir: .                # daily jobs_YYYY-MM-DD.xlsx lands in the project root
   profile: profile.yaml
   session: secrets/waas_storage_state.json

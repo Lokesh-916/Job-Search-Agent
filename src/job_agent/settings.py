@@ -26,11 +26,12 @@ class LLMConfig(BaseModel):
 
 class WaasSourceConfig(BaseModel):
     roles: list[str] = Field(default_factory=list)
-    job_types: list[str] = Field(default_factory=lambda: ["fulltime", "intern"])
+    job_types: list[str] = Field(default_factory=lambda: ["fulltime"])
     max_min_experience: int = 1
     remote: list[str] = Field(default_factory=lambda: ["yes", "only"])
     locations: list[str] = Field(default_factory=lambda: ["IN"])
     exclude_us_auth_required: bool = True
+    include_visa_sponsored: bool = True
     concurrency: int = 4
     request_delay_s: float = 0.5
     refetch_after_days: int = 3
@@ -75,7 +76,7 @@ class VramConfig(BaseModel):
 
 class Paths(BaseModel):
     data_dir: Path = Path("data")
-    output_dir: Path = Path("output")
+    output_dir: Path = Path(".")
     profile: Path = Path("profile.yaml")
     session: Path = Path("secrets/waas_storage_state.json")
 

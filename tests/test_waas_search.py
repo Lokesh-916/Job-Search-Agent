@@ -13,15 +13,17 @@ from job_agent.sources.waas.search import (
 
 def test_build_filters_default():
     assert build_filters(WaasSourceConfig()) == (
-        "(job_type:fulltime OR job_type:intern) "
+        "(job_type:fulltime) "
         "AND (min_experience:0 OR min_experience:1) "
-        "AND (remote:yes OR remote:only OR locations_for_search:IN) "
+        "AND (remote:yes OR remote:only OR locations_for_search:IN OR us_visa_required:possible) "
         "AND (us_visa_required:none OR us_visa_required:possible OR locations_for_search:IN)"
     )
 
 
 def test_build_filters_roles_and_no_visa_clause():
-    cfg = WaasSourceConfig(roles=["eng"], exclude_us_auth_required=False)
+    cfg = WaasSourceConfig(
+        roles=["eng"], exclude_us_auth_required=False, include_visa_sponsored=False
+    )
     f = build_filters(cfg)
     assert f.startswith("(role:eng) AND ")
     assert "us_visa_required" not in f

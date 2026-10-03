@@ -67,10 +67,10 @@ def _any_of(facet: str, values: list[str]) -> str:
 
 def build_filters(cfg: WaasSourceConfig) -> str:
     """Algolia filter string for fresher-friendly jobs that are remote or in our locations."""
-    where = [f"remote:{r}" for r in cfg.remote] + [
-        f"locations_for_search:{loc}" for loc in cfg.locations
-    ]
     local = [f"locations_for_search:{loc}" for loc in cfg.locations]
+    where = [f"remote:{r}" for r in cfg.remote] + local
+    if cfg.include_visa_sponsored:
+        where.append("us_visa_required:possible")
     clauses = [
         _any_of("job_type", cfg.job_types),
         _any_of("min_experience", [str(n) for n in range(cfg.max_min_experience + 1)]),
