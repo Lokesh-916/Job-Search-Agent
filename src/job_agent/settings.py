@@ -25,11 +25,12 @@ class LLMConfig(BaseModel):
 
 
 class WaasSourceConfig(BaseModel):
-    roles: list[str] = Field(default_factory=lambda: ["eng"])
+    roles: list[str] = Field(default_factory=list)
     job_types: list[str] = Field(default_factory=lambda: ["fulltime", "intern"])
     max_min_experience: int = 1
     remote: list[str] = Field(default_factory=lambda: ["yes", "only"])
     locations: list[str] = Field(default_factory=lambda: ["IN"])
+    exclude_us_auth_required: bool = True
     concurrency: int = 4
     request_delay_s: float = 0.5
     refetch_after_days: int = 3

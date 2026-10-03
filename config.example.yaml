@@ -19,11 +19,14 @@ llm:
 
 sources:
   waas:
-    roles: [eng]                 # eng | product | design | science | ...
+    roles: []                    # empty = any role; WaaS role tags are noisy, the LLM judges fit
     job_types: [fulltime, intern]
     max_min_experience: 1        # Algolia `min_experience` facet; the LLM re-checks the text
     remote: ["yes", "only"]      # remote OK / remote only ...
     locations: [IN]              # ... OR located here (Algolia `locations_for_search`)
+    # Remote jobs must not require US work authorization (no visa/relocation possible).
+    # Jobs located in `locations` are kept regardless.
+    exclude_us_auth_required: true
     concurrency: 4               # parallel job-page requests
     request_delay_s: 0.5         # politeness delay per request
     refetch_after_days: 3        # re-download details of known jobs after this long

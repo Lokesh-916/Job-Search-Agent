@@ -70,12 +70,18 @@ def build_filters(cfg: WaasSourceConfig) -> str:
     where = [f"remote:{r}" for r in cfg.remote] + [
         f"locations_for_search:{loc}" for loc in cfg.locations
     ]
+    local = [f"locations_for_search:{loc}" for loc in cfg.locations]
     clauses = [
-        _any_of("role", cfg.roles),
         _any_of("job_type", cfg.job_types),
         _any_of("min_experience", [str(n) for n in range(cfg.max_min_experience + 1)]),
         "(" + " OR ".join(where) + ")",
     ]
+    if cfg.roles:
+        clauses.insert(0, _any_of("role", cfg.roles))
+    if cfg.exclude_us_auth_required:
+        # Algolia can't nest NOT inside OR, so whitelist the other values instead.
+        allowed = ["us_visa_required:none", "us_visa_required:possible", *local]
+        clauses.append("(" + " OR ".join(allowed) + ")")
     return " AND ".join(clauses)
 
 
