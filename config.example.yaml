@@ -17,6 +17,17 @@ llm:
     assess:   { reasoning: true }
     research: { reasoning: true, num_ctx: 32768 }
 
+sources:
+  waas:
+    roles: [eng]                 # eng | product | design | science | ...
+    job_types: [fulltime, intern]
+    max_min_experience: 1        # Algolia `min_experience` facet; the LLM re-checks the text
+    remote: ["yes", "only"]      # remote OK / remote only ...
+    locations: [IN]              # ... OR located here (Algolia `locations_for_search`)
+    concurrency: 4               # parallel job-page requests
+    request_delay_s: 0.5         # politeness delay per request
+    refetch_after_days: 3        # re-download details of known jobs after this long
+
 preferences:
   salary_floor_lpa: 9          # below this -> Rejected
   salary_good_lpa: 12          # great for Indian startups

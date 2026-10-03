@@ -24,6 +24,21 @@ class LLMConfig(BaseModel):
     tasks: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 
+class WaasSourceConfig(BaseModel):
+    roles: list[str] = Field(default_factory=lambda: ["eng"])
+    job_types: list[str] = Field(default_factory=lambda: ["fulltime", "intern"])
+    max_min_experience: int = 1
+    remote: list[str] = Field(default_factory=lambda: ["yes", "only"])
+    locations: list[str] = Field(default_factory=lambda: ["IN"])
+    concurrency: int = 4
+    request_delay_s: float = 0.5
+    refetch_after_days: int = 3
+
+
+class SourcesConfig(BaseModel):
+    waas: WaasSourceConfig = Field(default_factory=WaasSourceConfig)
+
+
 class Preferences(BaseModel):
     salary_floor_lpa: float = 9
     salary_good_lpa: float = 12
@@ -74,6 +89,7 @@ class Secrets(BaseSettings):
 
 class Settings(BaseModel):
     llm: LLMConfig = Field(default_factory=LLMConfig)
+    sources: SourcesConfig = Field(default_factory=SourcesConfig)
     preferences: Preferences = Field(default_factory=Preferences)
     scoring: Scoring = Field(default_factory=Scoring)
     research: ResearchConfig = Field(default_factory=ResearchConfig)
