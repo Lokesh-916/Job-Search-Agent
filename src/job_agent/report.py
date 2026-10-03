@@ -154,8 +154,10 @@ def company_record(company: dict, research: dict[str, Any] | None, open_fit: int
     return {
         "Company": company.get("name"),
         "Website": company.get("website") or company.get("website_url") or "",
-        "One-liner": company.get("one_liner") or "",
-        "What they do": research.get("product") or company.get("description") or "",
+        "What they do": research.get("product")
+        or company.get("one_liner")
+        or company.get("description")
+        or "",
         "YC batch": company.get("batch") or "",
         "Team size": company.get("team_size"),
         "HQ": company.get("pretty_location") or "",

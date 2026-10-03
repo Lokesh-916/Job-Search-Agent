@@ -52,12 +52,12 @@ WIDTHS = {
     "Pay basis": 30, "Why I fit": 45, "Pitch": 40, "Learning upside": 30, "DSA evidence": 30,
     "Interview process": 40, "Must-have skills": 30, "Tech stack": 26, "What they do": 45,
     "Founders": 35, "Reject reason": 45, "Employee sentiment": 35, "Red flags": 25, "Gaps": 28,
-    "One-liner": 40, "Pros": 35, "Cons": 35, "Interview experiences": 40, "Outreach draft": 50,
+    "Pros": 35, "Cons": 35, "Interview experiences": 40, "Outreach draft": 50,
     "Salary data points": 30, "Recent news": 40, "Sources": 30,
 }  # fmt: skip
 WRAP = {"Why I fit", "Pitch", "Pay basis", "Eligibility evidence", "DSA evidence",
         "Interview process", "What they do", "Reject reason", "Employee sentiment",
-        "Pros", "Cons", "Interview experiences", "Outreach draft", "One-liner"}  # fmt: skip
+        "Pros", "Cons", "Interview experiences", "Outreach draft"}  # fmt: skip
 
 TABS = (  # (sheet name, filter)
     ("🔥 Top Picks", "top"),
