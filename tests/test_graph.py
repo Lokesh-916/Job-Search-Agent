@@ -2,6 +2,7 @@ import asyncio
 from pathlib import Path
 
 import job_agent.graph as graph
+import job_agent.research.agent as research_agent
 import job_agent.stages as stages
 from job_agent.preflight import Check
 from job_agent.settings import Paths, Settings
@@ -16,6 +17,8 @@ def fake_llm_reply(messages):
         sales = "Account Executive" in messages[-1].content
         return {"category": "non_technical" if sales else "ai_engineering", "keep": not sales,
                 "reason": "r"}  # fmt: skip
+    if "You research one startup" in system:
+        return {"product": "Invoice agents", "outreach_draft": "Hi", "rating": "4.6/5"}
     if "extract facts" in system:
         return {**EXTRACTION, "salary_min": 40000, "salary_max": 60000, "salary_currency": "USD"}
     return {**ASSESSMENT, "realistic_salary_lpa_min": 40, "realistic_salary_lpa_max": 50}
@@ -54,6 +57,8 @@ def setup(tmp_path, monkeypatch, vram_ok=True):
     monkeypatch.setattr(graph, "check_ollama", lambda s: Check("ollama", True, "x"))
     monkeypatch.setattr(graph, "check_session", lambda s: Check("session", True, "x"))
     monkeypatch.setattr(graph, "Telegram", FakeTelegram)
+    monkeypatch.setattr(research_agent, "search_web", lambda q, n=5, searxng_url=None: [])
+    monkeypatch.setattr(research_agent, "search_hn", lambda q, n=5: "No HN results.")
     monkeypatch.setattr(stages, "get_chat_model", lambda stage: FakeStructuredLLM(fake_llm_reply))
     FakeTelegram.sent = []
     return settings
@@ -68,6 +73,7 @@ def test_full_run_writes_workbook_and_notifies(tmp_path, monkeypatch):
     assert [j["Title"] for j in state["top"]] == ["AI Engineer"]
     log = dict(state["log"])
     assert log["Triage"].startswith("2/2 done") and "1 kept" in log["Triage"]
+    assert log["Research"].startswith("1/1 companies")
     assert log["Assess"].startswith("1/1 done")
     kinds = [k for k, _ in FakeTelegram.sent]
     assert kinds == ["msg", "doc"] and "AI Engineer" in FakeTelegram.sent[0][1]
