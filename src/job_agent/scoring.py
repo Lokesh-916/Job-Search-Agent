@@ -19,10 +19,18 @@ Bucket = Literal[
 
 ELIGIBILITY = {
     "remote_india_ok": 1.0,
-    "india_office": 0.75,  # wanted, but ranked below remote
+    "india_office": 0.7,  # wanted, but ranked below remote; preferred cities add a bonus
     "remote_unclear": 0.5,
     "abroad_credible": 0.45,
     "abroad_unclear": 0.25,
+}
+CITY_BONUS = (0.15, 0.1, 0.05)  # 1st, 2nd, 3rd... preferred city (never beats remote)
+CITY_ALIASES = {
+    "bengaluru": ("bengaluru", "bangalore", "blr"),
+    "hyderabad": ("hyderabad", "secunderabad", "hitec city", "hyd"),
+    "mumbai": ("mumbai", "bombay", "navi mumbai"),
+    "delhi": ("delhi", "new delhi", "gurgaon", "gurugram", "noida", "ncr"),
+    "chennai": ("chennai", "madras"),
 }
 DSA = {"low": 1.0, "unknown": 0.55, "medium": 0.45, "high": 0.1}
 JOINING_PENALTY = {"conflict": 10, "tight": 4}
@@ -93,6 +101,25 @@ def _eligibility(ex: Extraction, a: Assessment | None) -> str:
     return "india_office"
 
 
+def _location_value(ex: Extraction, a: Assessment | None, prefs: Preferences) -> float:
+    kind = _eligibility(ex, a)
+    value = ELIGIBILITY[kind]
+    if kind == "india_office":
+        rank = city_rank(ex.locations, prefs.preferred_cities)
+        if rank is not None:
+            value += CITY_BONUS[min(rank, len(CITY_BONUS) - 1)]
+    return value
+
+
+def city_rank(locations: list[str], preferred: list[str]) -> int | None:
+    """Index of the best preferred city among the job's locations (0 = favourite)."""
+    text = " ".join(locations).lower()
+    for rank, city in enumerate(preferred):
+        if any(alias in text for alias in CITY_ALIASES.get(city.lower(), (city.lower(),))):
+            return rank
+    return None
+
+
 def bucket_for(ex: Extraction, company_country: str | None) -> Bucket:
     if ex.relocation_abroad_required:
         return "abroad_sponsored"
@@ -134,7 +161,7 @@ def score_job(
     realistic = [v for v in (a.realistic_salary_lpa_min, a.realistic_salary_lpa_max) if v]
     pay = sum(realistic) / len(realistic) if realistic else listed[0]
     components = {
-        "remote_eligibility": ELIGIBILITY[_eligibility(ex, a)],
+        "remote_eligibility": _location_value(ex, a, prefs),
         "pay": pay_score(pay, prefs, rates.get("USD", 90.0)),
         "low_dsa": DSA[a.dsa_risk],
         "fit": a.fit_score / 100,

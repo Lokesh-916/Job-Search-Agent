@@ -47,6 +47,7 @@ class Preferences(BaseModel):
     salary_foreign_target_lpa: float = 20
     salary_stretch_usd: float = 120_000
     include_onsite_india: bool = True
+    preferred_cities: list[str] = Field(default_factory=lambda: ["Hyderabad", "Bengaluru"])
     max_experience_years: float = 1
 
 

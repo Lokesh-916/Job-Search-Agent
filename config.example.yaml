@@ -39,6 +39,7 @@ preferences:
   salary_foreign_target_lpa: 20
   salary_stretch_usd: 120000
   include_onsite_india: true
+  preferred_cities: [Hyderabad, Bengaluru]   # for office/hybrid roles, in order; remote still wins
   max_experience_years: 1      # internships don't count against this
 
 scoring:                       # weights, sum to 100
