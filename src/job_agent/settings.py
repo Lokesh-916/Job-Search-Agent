@@ -76,7 +76,7 @@ class VramConfig(BaseModel):
 
 class Paths(BaseModel):
     data_dir: Path = Path("data")
-    output_dir: Path = Path(".")
+    output_dir: Path = Path("workbooks")
     profile: Path = Path("profile.yaml")
     session: Path = Path("secrets/waas_storage_state.json")
 

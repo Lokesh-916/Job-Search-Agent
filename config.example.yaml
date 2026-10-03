@@ -65,6 +65,6 @@ vram:
 
 paths:
   data_dir: data
-  output_dir: .                # daily jobs_YYYY-MM-DD.xlsx lands in the project root
+  output_dir: workbooks        # daily jobs_YYYY-MM-DD.xlsx files
   profile: profile.yaml
   session: secrets/waas_storage_state.json
