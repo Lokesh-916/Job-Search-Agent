@@ -1,0 +1,32 @@
+# Copy to profile.yaml (gitignored) and describe yourself. The LLM reads this to judge fit.
+name: Your Name
+location: City, Country
+github: https://github.com/you
+
+education:
+  degree: B.Tech, Computer Science
+  school: Your College
+  graduation: 2027-05
+
+experience:
+  - role: Software Intern
+    company: Some Startup
+    period: 2026
+    work: What you built, in one or two lines
+
+projects:   # strongest first
+  - name: Project
+    what: One line on what it does and the impact
+    stack: [Python, FastAPI]
+
+skills:
+  backend: [Python, FastAPI]
+  genai: [LangChain, RAG]
+
+preferences:
+  job_type: full-time
+  favourite_work: building with AI
+  also_happy_with: [backend, full-stack]
+  not_interested: [sales, marketing]
+  interviews: prefers practical rounds over LeetCode
+  location: remote or onsite in your country
