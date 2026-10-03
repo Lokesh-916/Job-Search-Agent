@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Secrets & sessions
+.env
+config.yaml
+secrets/
+*storage_state*.json
+
+# Runtime data
+data/
+output/
+*.xlsx
+*.sqlite
+*.db
+logs/
