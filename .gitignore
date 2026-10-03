@@ -19,3 +19,7 @@ output/
 *.sqlite
 *.db
 logs/
+
+# Personal profile and resume
+profile.yaml
+resume*.pdf
