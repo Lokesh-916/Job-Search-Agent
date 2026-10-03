@@ -48,6 +48,11 @@ class ResearchConfig(BaseModel):
     searxng_url: str | None = None
 
 
+class BrowserConfig(BaseModel):
+    channel: str | None = None
+    headless: bool = True
+
+
 class VramConfig(BaseModel):
     min_free_mib: int = 11000
 
@@ -72,6 +77,7 @@ class Settings(BaseModel):
     preferences: Preferences = Field(default_factory=Preferences)
     scoring: Scoring = Field(default_factory=Scoring)
     research: ResearchConfig = Field(default_factory=ResearchConfig)
+    browser: BrowserConfig = Field(default_factory=BrowserConfig)
     vram: VramConfig = Field(default_factory=VramConfig)
     paths: Paths = Field(default_factory=Paths)
     secrets: Secrets = Field(default_factory=Secrets)

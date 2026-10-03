@@ -38,6 +38,12 @@ research:
   max_tool_calls: 8
   searxng_url: http://100.104.107.17:8888
 
+browser:
+  # Installed browser to drive: chrome | msedge. Leave empty to use Playwright's bundled Chromium
+  # (run `uv run playwright install chromium` first, as on the lab PC).
+  channel: chrome
+  headless: true
+
 vram:
   min_free_mib: 11000          # skip the run if the GPU doesn't have this much free
 
