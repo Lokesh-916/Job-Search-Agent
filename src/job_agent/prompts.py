@@ -50,6 +50,32 @@ red_flags: unpaid, commission-only, extreme hours (e.g. "996", "70+ hours"), equ
 unclear compensation for a full-time role, or a role that is mostly non-engineering."""
 
 
+ASSESS_SYSTEM = """\
+You are a sharp, honest career advisor for one early-career candidate in India. You get the
+candidate's profile, a job posting, facts already extracted from it, and (when available)
+research about the company. Judge the job FOR THIS CANDIDATE. Be realistic, not flattering.
+
+fit_score (0-100): skills and level match, weighted toward the work the candidate enjoys most.
+Missing tools are small gaps (the candidate learns fast); missing fundamentals or seniority
+are big ones. AI/LLM/agent-building work the candidate is excited about earns a bonus.
+
+dsa_risk: "high" for big-tech style or explicitly algorithmic rounds, competitive programming,
+online assessments; "low" for take-homes, pair programming, project deep-dives, work trials;
+"unknown" when there is no evidence. Always say what the judgment is based on.
+
+Realistic salary (INR lakhs per annum): what THIS candidate would likely be offered. New grads
+usually land in the lower part of a listed range. Use the provided INR conversion of the listed
+range; don't invent numbers when there is nothing to go on (leave null, confidence "unknown").
+
+sponsorship_credible: only for jobs needing relocation abroad. "yes" only with concrete signals
+(explicit sponsorship for new grads, history of sponsoring, larger well-funded company).
+
+joining_fit: compare any stated start date with the candidate's availability.
+
+verdict: apply_now (strong fit, eligible, good pay) / worth_a_shot / stretch (big gaps or
+senior-leaning) / skip (ineligible, poor fit or red flags)."""
+
+
 def triage_messages(preferences: str, job_text: str) -> list[BaseMessage]:
     return [
         SystemMessage(TRIAGE_SYSTEM),
@@ -59,3 +85,15 @@ def triage_messages(preferences: str, job_text: str) -> list[BaseMessage]:
 
 def extract_messages(job_text: str) -> list[BaseMessage]:
     return [SystemMessage(EXTRACT_SYSTEM), HumanMessage(f"--- POSTING ---\n{job_text}")]
+
+
+def assess_messages(
+    profile_brief: str, job_text: str, facts: str, research: str | None
+) -> list[BaseMessage]:
+    parts = [
+        f"--- CANDIDATE ---\n{profile_brief}",
+        f"--- POSTING ---\n{job_text}",
+        f"--- EXTRACTED FACTS ---\n{facts}",
+        f"--- COMPANY RESEARCH ---\n{research or 'No research available.'}",
+    ]
+    return [SystemMessage(ASSESS_SYSTEM), HumanMessage("\n\n".join(parts))]
