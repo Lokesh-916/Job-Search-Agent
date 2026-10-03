@@ -17,7 +17,8 @@ uv sync                                  # install (Python 3.12, pinned)
 uv run job-agent doctor                  # preflight: VRAM, Ollama, WaaS session (never loads a model)
 uv run job-agent login                   # one-time visible-browser WaaS login -> secrets/waas_storage_state.json
 uv run job-agent fetch                   # WaaS -> data/jobs.db (no LLM)
-uv run job-agent report                  # data/jobs.db -> ./jobs_YYYY-MM-DD.xlsx (no LLM)
+uv run job-agent report                  # data/jobs.db -> workbooks/jobs_YYYY-MM-DD.xlsx (no LLM)
+uv run job-agent run --limit 25          # full pipeline (needs Ollama); --wait-gpu-until HH:MM, --skip-fetch
 uv run job-agent notify-test             # Telegram test message
 uv run pytest -q                         # all tests (no GPU/Ollama needed)
 uv run pytest tests/test_scoring.py::test_buckets   # single test
@@ -27,7 +28,7 @@ On Windows, prefix with `PYTHONIOENCODING=utf-8` when output contains emoji or �
 
 ## Architecture
 
-Data flow: `sources/waas` (fetch) → `store.py` (SQLite, the source of truth) → `stages.py` (LLM stages) → `scoring.py` → `report.py` → `export.py` (xlsx) → `notify.py`.
+Data flow (wired in `graph.py` as a LangGraph graph): `sources/waas` (fetch) → `store.py` (SQLite, the source of truth) → `stages.py` (triage → extract → research → assess) → `scoring.py` → `report.py` → `export.py` (xlsx in `workbooks/`) → `notify.py` (Telegram). `research/` holds the company research agent: fixed parallel searches, then a capped `create_agent` tool loop, with a summary-only fallback.
 
 - `llm.py` is the **only** place that knows about providers. Stages call `get_chat_model("<stage>")`. Per-stage overrides (`reasoning`, `num_ctx`) live under `llm.tasks` in config. The model spec is `provider:model`.
 - `structured.py`: every LLM call returns a Pydantic schema from `schemas.py` through Ollama JSON-schema constrained decoding, with one self-repair retry that feeds back the validation error.
@@ -40,7 +41,9 @@ Data flow: `sources/waas` (fetch) → `store.py` (SQLite, the source of truth) �
 ## Environment notes
 
 - Lab PC: Ubuntu 24.04, Xeon w5-2565X (36 threads), 62 GB RAM, RTX 2000 Ada 16 GB, CUDA 13, only ~66 GB disk free. Docker is installed but its daemon is off. sudo needs a password, so ask the user to run sudo commands.
-- From this Windows laptop, SSH to the lab PC only works with the **Windows OpenSSH client** (the PowerShell tool), not Git Bash's `ssh`.
+- From this Windows laptop, SSH to the lab PC only works with the **Windows OpenSSH client**. From the Bash tool call `/c/Windows/System32/OpenSSH/ssh.exe`, which keeps bash quoting sane. Git Bash's own `ssh` fails auth, and PowerShell mangles nested quotes.
+- Lab PC layout: repo at `~/projects/Job-Search-Agent` (own `config.yaml`: localhost Ollama, `min_free_mib: 13000`), uv at `~/.local/bin/uv`, user-space Ollama at `~/.local/ollama/bin/ollama` (no system service). Models live in `~/.ollama/models`. `scripts/lab_run.sh` starts Ollama, runs `job-agent run "$@"` and always stops Ollama. Scheduled runs are user crontab entries. Logs go to `logs/`.
+- To pull a model without touching VRAM, run `ollama serve` with `CUDA_VISIBLE_DEVICES=-1`.
 - The Playwright Chromium download times out here, so config uses `browser.channel: chrome` (the installed Chrome).
 - Don't write Python containing escape sequences through bash heredocs. Use the Edit/Write tools.
 
