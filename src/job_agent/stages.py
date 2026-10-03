@@ -42,9 +42,13 @@ async def _run_stage(
     settings: Settings,
     llm: BaseChatModel | None,
     limit: int | None,
+    input_key: Callable[[sqlite3.Row], str] = lambda r: r["content_hash"],
 ) -> StageReport:
+    """Run `stage` for rows whose inputs (see `input_key`) changed since the last success."""
     model = settings.llm.model
-    todo = [r for r in rows if store.needs_stage(r, stage, model)][:limit]
+    keys = {r["job_id"]: input_key(r) for r in rows}
+    todo = [r for r in rows if store.needs_stage(r["job_id"], stage, model, keys[r["job_id"]])]
+    todo = todo[:limit]
     report = StageReport(stage=stage, todo=len(todo))
     if not todo:
         return report
@@ -56,7 +60,7 @@ async def _run_stage(
         settings.llm.max_concurrency,
     )
     for job_id, out in results.items():
-        input_hash = by_id[job_id]["content_hash"]
+        input_hash = keys[job_id]
         if isinstance(out, Exception):
             error = f"{type(out).__name__}: {out}"[:500]
             report.failed[job_id] = error

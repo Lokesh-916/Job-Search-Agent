@@ -135,14 +135,14 @@ class Store:
             sql, args = sql + " AND source=?", (source,)
         return self.db.execute(sql + " ORDER BY first_seen DESC", args).fetchall()
 
-    def needs_stage(self, row: sqlite3.Row, stage: str, model: str) -> bool:
-        """True unless a successful result exists for this exact posting and model."""
-        res = self.get_result(row["job_id"], stage)
+    def needs_stage(self, job_id: str, stage: str, model: str, input_hash: str) -> bool:
+        """True unless a successful result exists for these exact inputs and model."""
+        res = self.get_result(job_id, stage)
         return not (
             res
             and res["error"] is None
             and res["model"] == model
-            and res["input_hash"] == row["content_hash"]
+            and res["input_hash"] == input_hash
         )
 
     def get_result(self, job_id: str, stage: str) -> sqlite3.Row | None:
