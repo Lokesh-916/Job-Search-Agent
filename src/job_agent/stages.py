@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 from collections.abc import Callable, Sequence
@@ -13,14 +14,17 @@ from pydantic import BaseModel
 
 from job_agent.jobs import render_job
 from job_agent.llm import get_chat_model
-from job_agent.profile import preferences_brief
-from job_agent.prompts import extract_messages, triage_messages
-from job_agent.schemas import Extraction, Triage
+from job_agent.profile import full_brief, preferences_brief
+from job_agent.prompts import assess_messages, extract_messages, triage_messages
+from job_agent.schemas import Assessment, Extraction, Triage
+from job_agent.scoring import hard_reject, listed_lpa
 from job_agent.settings import Settings
 from job_agent.store import Store
 from job_agent.structured import abatch_structured
 
 TRIAGE_DESC_CHARS = 1200  # triage only needs the gist
+
+ResearchLookup = Callable[[sqlite3.Row], str | None]
 
 
 @dataclass
@@ -122,4 +126,51 @@ async def run_extract(
         settings=settings,
         llm=llm,
         limit=limit,
+    )
+
+
+def _digest(*parts: str | None) -> str:
+    return hashlib.sha256("|".join(p or "" for p in parts).encode()).hexdigest()[:16]
+
+
+def _facts(ex: Extraction, listed: tuple[float | None, float | None]) -> str:
+    lo, hi = listed
+    inr = f"{lo}-{hi} LPA" if lo is not None else "not stated"
+    return f"{ex.model_dump_json(exclude_none=True)}\nListed salary in INR: {inr}"
+
+
+async def run_assess(
+    store: Store,
+    settings: Settings,
+    profile: dict,
+    rates: dict[str, float],
+    research: ResearchLookup = lambda row: None,
+    llm: BaseChatModel | None = None,
+    limit: int | None = None,
+) -> StageReport:
+    """Judge extracted jobs that survived the hard gates, for this candidate."""
+    brief = full_brief(profile)
+    todo: list[sqlite3.Row] = []
+    facts: dict[str, str] = {}
+    for row in kept_jobs(store):
+        raw = stage_result(store, row["job_id"], "extract")
+        if raw is None:
+            continue
+        ex = Extraction.model_validate(raw)
+        listed = listed_lpa(ex, rates)
+        if hard_reject(None, ex, listed, settings.preferences):
+            continue
+        todo.append(row)
+        facts[row["job_id"]] = _facts(ex, listed)
+
+    return await _run_stage(
+        stage="assess",
+        schema=Assessment,
+        rows=todo,
+        build=lambda r: assess_messages(brief, render_job(r), facts[r["job_id"]], research(r)),
+        store=store,
+        settings=settings,
+        llm=llm,
+        limit=limit,
+        input_key=lambda r: _digest(r["content_hash"], facts[r["job_id"]], research(r), brief),
     )
