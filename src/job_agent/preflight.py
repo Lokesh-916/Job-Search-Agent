@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import time
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 import httpx
 
@@ -68,3 +70,15 @@ def check_session(settings: Settings) -> Check:
 
 def run_checks(settings: Settings) -> list[Check]:
     return [check_vram(settings), check_ollama(settings), check_session(settings)]
+
+
+def wait_for_vram(
+    settings: Settings, deadline: datetime, poll_s: float = 300, sleep=time.sleep
+) -> bool:
+    """Poll until enough VRAM is free or the deadline passes. True if the GPU is usable."""
+    while True:
+        if check_vram(settings).ok:
+            return True
+        if datetime.now() + timedelta(seconds=poll_s) > deadline:
+            return False
+        sleep(poll_s)
