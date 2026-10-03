@@ -47,5 +47,22 @@ def login() -> None:
         raise typer.Exit(1)
 
 
+@app.command()
+def fetch() -> None:
+    """Pull matching WaaS jobs into the local database (no LLM involved)."""
+    from job_agent.sources.waas.fetch import fetch_waas
+    from job_agent.store import Store
+
+    settings = get_settings()
+    with Store(settings.paths.data_dir / "jobs.db") as store, console.status("Fetching WaaS..."):
+        r = fetch_waas(settings, store)
+    console.print(
+        f"found [bold]{r.found}[/] | new {len(r.new)} | details {r.fetched} | "
+        f"new/changed postings {len(r.changed)} | closed {r.closed} | failed {len(r.failed)}"
+    )
+    for job_id, err in list(r.failed.items())[:5]:
+        console.print(f"  [red]{job_id}[/] {err}")
+
+
 if __name__ == "__main__":
     app()
