@@ -65,7 +65,8 @@ def content_hash(detail: dict[str, Any]) -> str:
 class Store:
     def __init__(self, path: Path):
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.db = sqlite3.connect(path)
+        # LangGraph runs sync nodes in worker threads; nodes are sequential, so sharing is safe.
+        self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
 
