@@ -75,6 +75,32 @@ joining_fit: compare any stated start date with the candidate's availability.
 verdict: apply_now (strong fit, eligible, good pay) / worth_a_shot / stretch (big gaps or
 senior-leaning) / skip (ineligible, poor fit or red flags)."""
 
+_RESEARCH_RULES = """\
+Rules:
+- Many startups share names with other companies. Only use results that clearly match this
+  company (same product, website or founders). Ignore the rest.
+- Never invent facts. Unknown stays null / empty. Put the URLs you relied on in `sources`.
+- outreach_draft: 3-4 lines to a founder, referencing something specific about the company
+  and one concrete reason the candidate fits. No flattery, no generic filler."""
+
+RESEARCH_SYSTEM = f"""\
+You research one startup for a job seeker in India. You are given the company's own profile
+and a first batch of search results. Use the tools to fill the gaps that matter most:
+1. Interview experiences (rounds, LeetCode/DSA or practical?) - Glassdoor, LeetCode Discuss,
+   Reddit, Blind.
+2. Employee sentiment and rating - Glassdoor, AmbitionBox (India), Reddit.
+3. Real salary data points for engineers - Levels.fyi, Glassdoor, AmbitionBox.
+4. Funding, traction, recent news; India office or India hiring; visa sponsorship history.
+Be economical: a few targeted searches; read a page only when a snippet isn't enough.
+
+{_RESEARCH_RULES}"""
+
+RESEARCH_SYNTH_SYSTEM = f"""\
+You research one startup for a job seeker in India. Searching is over: summarise ONLY the
+evidence below (the company's own profile plus search results) into the schema.
+
+{_RESEARCH_RULES}"""
+
 
 def triage_messages(preferences: str, job_text: str) -> list[BaseMessage]:
     return [
