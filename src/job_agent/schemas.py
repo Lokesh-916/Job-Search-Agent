@@ -138,3 +138,26 @@ class Assessment(BaseModel):
 
     verdict: Literal["apply_now", "worth_a_shot", "stretch", "skip"]
     pitch: str = Field(description="One line the candidate could lead with when applying")
+
+
+class CompanyResearch(BaseModel):
+    """What the web says about a company. Every claim should be traceable to `sources`."""
+
+    product: str = Field(description="What the company sells / builds, in plain words")
+    funding: str | None = Field(None, description="Stage, amount, lead investors, date")
+    traction: str | None = Field(None, description="Customers, revenue, growth signals")
+    rating: str | None = Field(None, description="e.g. 'Glassdoor 4.3/5 (19 reviews)'")
+    employee_sentiment: str | None = Field(None, description="Two lines summarising reviews")
+    pros: list[str] = Field(default_factory=list)
+    cons: list[str] = Field(default_factory=list)
+    interview_experiences: str | None = Field(None, description="Rounds and difficulty reported")
+    dsa_heavy: Level = Field("unknown", description="Do reported interviews lean on LeetCode/DSA?")
+    salary_data: list[str] = Field(default_factory=list, description="Data points with source")
+    india_presence: str | None = Field(None, description="Office/team/hiring in India, if any")
+    sponsorship_history: str | None = Field(None, description="Evidence of sponsoring visas")
+    news: list[str] = Field(default_factory=list, description="Recent notable news, dated")
+    red_flags: list[str] = Field(default_factory=list, description="Layoffs, lawsuits, unpaid work")
+    outreach_draft: str = Field(
+        description="A 3-4 line note the candidate could send a founder; specific, not generic"
+    )
+    sources: list[str] = Field(default_factory=list, description="URLs the facts came from")
