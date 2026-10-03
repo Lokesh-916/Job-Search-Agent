@@ -41,3 +41,4 @@ def test_search_jobs_paginates():
     hits = search_jobs(AlgoliaOpts("APP", "KEY"), "role:eng", client)
     assert [h["id"] for h in hits] == ["0", "1"]
     assert calls[0].headers["X-Algolia-API-Key"] == "KEY"
+    assert "distinct=false" in calls[0].content.decode()

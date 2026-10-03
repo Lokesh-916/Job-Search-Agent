@@ -92,6 +92,7 @@ def search_jobs(opts: AlgoliaOpts, filters: str, client: httpx.Client | None = N
                 "hitsPerPage": HITS_PER_PAGE,
                 "page": page,
                 "attributesToHighlight": "[]",
+                "distinct": "false",  # the index groups by company by default
             }
         )
         body = {"requests": [{"indexName": JOBS_INDEX, "params": params}]}
