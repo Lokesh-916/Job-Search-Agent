@@ -1,0 +1,48 @@
+# Copy to config.yaml and edit. Secrets (Telegram token, etc.) go in .env, not here.
+
+llm:
+  # "<provider>:<model>". Swap the model here to experiment.
+  #   ollama:qwen3:14b | ollama:gpt-oss:20b | ollama:deepseek-r1:14b | ollama:qwen2.5-coder:14b
+  #   openai:<model> with base_url pointing at any OpenAI-compatible server (LM Studio, vLLM, ...)
+  model: ollama:qwen3:14b
+  base_url: http://100.104.107.17:11434   # lab PC over Tailscale; http://localhost:11434 when run there
+  temperature: 0.0
+  num_ctx: 16384
+  keep_alive: 5m        # how long Ollama keeps the model in VRAM after the last call
+  max_concurrency: 2    # parallel LLM calls (match OLLAMA_NUM_PARALLEL)
+  # Per-task overrides: any key above plus `reasoning` (thinking on/off).
+  tasks:
+    triage:   { reasoning: false }
+    extract:  { reasoning: false }
+    assess:   { reasoning: true }
+    research: { reasoning: true, num_ctx: 32768 }
+
+preferences:
+  salary_floor_lpa: 9          # below this -> Rejected
+  salary_good_lpa: 12          # great for Indian startups
+  salary_foreign_target_lpa: 20
+  salary_stretch_usd: 120000
+  include_onsite_india: true
+  max_experience_years: 1      # internships don't count against this
+
+scoring:                       # weights, sum to 100
+  remote_eligibility: 30
+  pay: 25
+  low_dsa: 15
+  fit: 20
+  company: 10
+  top_pick_threshold: 75
+
+research:
+  cache_days: 14
+  max_tool_calls: 8
+  searxng_url: http://100.104.107.17:8888
+
+vram:
+  min_free_mib: 11000          # skip the run if the GPU doesn't have this much free
+
+paths:
+  data_dir: data
+  output_dir: output
+  profile: profile.yaml
+  session: secrets/waas_storage_state.json
