@@ -91,6 +91,44 @@ def report() -> None:
     console.print(f"[green]Wrote[/] {path.resolve()}")
 
 
+@app.command()
+def run(
+    limit: int = typer.Option(None, help="Cap jobs per LLM stage (for test runs)."),
+    skip_fetch: bool = typer.Option(False, help="Use jobs already in the database."),
+    notify: bool = typer.Option(True, help="Send the Telegram digest + workbook."),
+    wait_gpu_until: str = typer.Option(
+        None, help="HH:MM. Wait (polling every 5 min) for free VRAM until this time."
+    ),
+) -> None:
+    """Full pipeline: fetch -> triage -> extract -> assess -> workbook -> Telegram."""
+    import asyncio
+    from datetime import datetime
+
+    from job_agent.graph import run_pipeline
+    from job_agent.preflight import wait_for_vram
+
+    settings = get_settings()
+    if wait_gpu_until:
+        hh, mm = map(int, wait_gpu_until.split(":"))
+        deadline = datetime.now().replace(hour=hh, minute=mm, second=0, microsecond=0)
+        console.print(
+            f"Waiting for {settings.vram.min_free_mib} MiB free VRAM until {deadline:%H:%M}"
+        )
+        if not wait_for_vram(settings, deadline):
+            console.print(
+                "[yellow]GPU never freed up; running anyway so the user gets a notice.[/]"
+            )
+    state = asyncio.run(
+        run_pipeline(settings, {"limit": limit, "skip_fetch": skip_fetch, "notify": notify})
+    )
+    for key, value in state.get("log", []):
+        console.print(f"  {key}: {value}")
+    if state.get("abort"):
+        console.print(f"[red]Aborted:[/] {state['abort']}")
+        raise typer.Exit(1)
+    console.print(f"[green]Done[/] -> {state.get('workbook')}")
+
+
 @app.command("notify-test")
 def notify_test() -> None:
     """Send a test message to the configured Telegram chat."""
