@@ -2,28 +2,40 @@
 
 > A local-LLM agent that hunts YC startup jobs so I don't have to doom-scroll job boards.
 
-It crawls [Work at a Startup](https://www.workatastartup.com) for **fresher / new-grad / intern-friendly** roles, reads every listing with a locally hosted LLM, ranks them by what actually matters to me, and drops the results into a tidy Excel sheet. I still apply myself. This is a scout, not an auto-apply bot.
+Every day it pulls fresher-friendly roles from [Work at a Startup](https://www.workatastartup.com), digs into each company, judges every job against my profile with an LLM running on my own GPU, and hands me one tidy Excel workbook plus a Telegram ping. I still apply myself. This is a scout, not an auto-apply bot.
 
 ## 🎯 What it optimizes for
 
-| Priority | Signal |
+| | Signal |
 |---|---|
-| 🏠 1 | Remote / WFH |
-| 💰 2 | High pay (US startups, salary + equity) |
-| 🧠 3 | Practical interviews (take-homes, pairing) over LeetCode grinding |
-| 🎓 4 | Zero experience or internship-only requirements |
+| 🏠 | Remote from India first, then Hyderabad › Bengaluru › rest of India |
+| 💰 | Realistic pay in ₹ LPA (dollar salaries converted at live rates) |
+| 🧠 | Practical interviews over LeetCode marathons |
+| 🤖 | Building with AI: agents, LLM apps, AI products |
+| 🎓 | Roles a fresher can actually get |
 
 ## 🧩 How it works
 
 ```
- crawl ──▶ pre-filter ──▶ LLM extract & judge ──▶ score ──▶ store ──▶ 📊 jobs.xlsx
+fetch ─▶ triage ─▶ extract ─▶ research ─▶ assess ─▶ score ─▶ 📊 workbook ─▶ 📲 Telegram
 ```
 
-- **LangGraph** orchestrates the pipeline
-- **Ollama** serves the model on a local GPU, so there are no API keys or bills
-- **Swappable models**: Qwen3, gpt-oss, DeepSeek-R1-Distill and others, changed with one config line
-- **Playwright / Crawl4AI** do the browsing
+- **Fetch:** reads WaaS's own search index and job pages. Fast, structured, no HTML guessing.
+- **Triage / extract / assess:** typed JSON from a local LLM, with self-repair when the model slips.
+- **Research:** a small tool-using agent checks reviews, interview stories, salaries and funding, and drafts a founder note.
+- **Score:** plain arithmetic on the LLM's judgments, so rankings stay comparable across models.
+- **Cached everywhere:** only new or changed postings cost GPU time.
 
-## 🚧 Status
+**Stack:** LangGraph · Ollama (`qwen3:14b` by default, one config line to swap) · Playwright · SQLite · xlsxwriter
 
-Early days. The plan is being finalized and code is coming soon.
+## ⚡ Try it
+
+```bash
+uv sync
+cp config.example.yaml config.yaml && cp profile.example.yaml profile.yaml   # make them yours
+uv run job-agent login      # sign in to WaaS once
+uv run job-agent doctor     # GPU, Ollama and session checks
+uv run job-agent run --limit 25
+```
+
+The workbook lands in `workbooks/`. Set Status and notes there and they carry over to tomorrow's file.
