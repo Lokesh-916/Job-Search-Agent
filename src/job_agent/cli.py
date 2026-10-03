@@ -64,5 +64,16 @@ def fetch() -> None:
         console.print(f"  [red]{job_id}[/] {err}")
 
 
+@app.command("notify-test")
+def notify_test() -> None:
+    """Send a test message to the configured Telegram chat."""
+    from job_agent.notify import Telegram
+
+    Telegram(get_settings().secrets).send_message(
+        "👋 <b>Job-Search-Agent</b> is wired up. Daily picks will land here."
+    )
+    console.print("[green]Sent.[/] Check Telegram.")
+
+
 if __name__ == "__main__":
     app()
