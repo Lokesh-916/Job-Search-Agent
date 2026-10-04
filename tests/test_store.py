@@ -57,3 +57,19 @@ def test_company_research_cache(tmp_path):
         s.save_research("9", "Acme", "m", {"product": "agents"})
         assert s.research_fresh("9", "m", 14) and not s.research_fresh("9", "other", 14)
         assert s.get_research("9") == {"product": "agents"}
+
+
+def test_save_and_list_runs(tmp_path):
+    from job_agent.metrics import LLMCall
+
+    with Store(tmp_path / "j.db") as s:
+        calls = [
+            LLMCall("triage", 0.0, 3.1, 700, 90, None, 1.8),
+            LLMCall("assess", 0, 40, ok=False),
+        ]
+        s.save_run("r1", "2026-10-04T04:35:00+00:00", "ollama:qwen3:14b", {"limit": 25},
+                   {"stage_seconds": {"triage": 105}}, calls)  # fmt: skip
+        [run] = s.runs()
+        assert run["model"] == "ollama:qwen3:14b" and '"triage": 105' in run["summary_json"]
+        rows = s.llm_calls("r1")
+        assert [(r["stage"], r["ok"]) for r in rows] == [("triage", 1), ("assess", 0)]

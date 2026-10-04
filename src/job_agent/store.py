@@ -50,6 +50,27 @@ CREATE TABLE IF NOT EXISTS company_research (
     error         TEXT,
     researched_at TEXT NOT NULL
 );
+
+-- Run metrics, for comparing runs, prompts and models over time.
+CREATE TABLE IF NOT EXISTS runs (
+    run_id       TEXT PRIMARY KEY,
+    started_at   TEXT NOT NULL,
+    finished_at  TEXT NOT NULL,
+    model        TEXT NOT NULL,
+    options_json TEXT,
+    summary_json TEXT
+);
+CREATE TABLE IF NOT EXISTS llm_calls (
+    run_id        TEXT NOT NULL,
+    stage         TEXT NOT NULL,
+    latency_s     REAL NOT NULL,
+    input_tokens  INTEGER,
+    output_tokens INTEGER,
+    load_s        REAL,
+    eval_s        REAL,
+    ok            INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS llm_calls_run ON llm_calls(run_id);
 """
 
 
@@ -211,6 +232,37 @@ class Store:
             (company_id,),
         ).fetchone()
         return json.loads(row[0]) if row and row[0] else None
+
+    def save_run(
+        self,
+        run_id: str,
+        started_at: str,
+        model: str,
+        options: dict[str, Any],
+        summary: dict[str, Any],
+        calls: list[Any],
+    ) -> None:
+        with self.db:
+            self.db.execute(
+                "INSERT OR REPLACE INTO runs VALUES (?, ?, ?, ?, ?, ?)",
+                (run_id, started_at, now_iso(), model, json.dumps(options), json.dumps(summary)),
+            )
+            self.db.executemany(
+                "INSERT INTO llm_calls VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                [
+                    (run_id, c.stage, c.latency_s, c.input_tokens, c.output_tokens,
+                     c.load_s, c.eval_s, int(c.ok))
+                    for c in calls
+                ],
+            )  # fmt: skip
+
+    def runs(self) -> list[sqlite3.Row]:
+        return self.db.execute("SELECT * FROM runs ORDER BY started_at").fetchall()
+
+    def llm_calls(self, run_id: str | None = None) -> list[sqlite3.Row]:
+        if run_id is None:
+            return self.db.execute("SELECT * FROM llm_calls").fetchall()
+        return self.db.execute("SELECT * FROM llm_calls WHERE run_id=?", (run_id,)).fetchall()
 
     def get(self, job_id: str) -> sqlite3.Row | None:
         return self.db.execute("SELECT * FROM jobs WHERE job_id=?", (job_id,)).fetchone()
