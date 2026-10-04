@@ -47,3 +47,7 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.16.10",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"src/job_agent/community/classify.py" = ["E501"]  # regex tables read better unwrapped
+"tests/*" = ["E501"]  # test fixtures
