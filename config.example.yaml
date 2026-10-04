@@ -15,13 +15,13 @@ llm:
     triage:   { reasoning: false }
     extract:  { reasoning: false }
     assess:   { reasoning: true }
-    research: { reasoning: true, num_ctx: 32768 }
+    research: { reasoning: true }   # same num_ctx everywhere: a change forces a model reload
 
 sources:
   waas:
     roles: []                    # empty = any role; WaaS role tags are noisy, the LLM judges fit
     job_types: [fulltime]
-    max_min_experience: 1        # Algolia `min_experience` facet; the LLM re-checks the text
+    max_min_experience: 0        # 0 = new grads; "1+ years" means full-time experience
     remote: ["yes", "only"]      # remote OK / remote only ...
     locations: [IN]              # ... OR located here (Algolia `locations_for_search`)
     # Remote jobs must not require US work authorization (no visa/relocation possible).
