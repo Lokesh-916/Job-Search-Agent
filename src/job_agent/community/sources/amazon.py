@@ -34,7 +34,8 @@ def fetch(company: Company, client: httpx.Client) -> list[Posting]:
         for offset in range(0, 500, PAGE):
             resp = client.get(API, params={"country": "IND", "result_limit": PAGE,
                                            "offset": offset, "category[]": category,
-                                           "sort": "recent"})  # fmt: skip
+                                           "sort": "recent"},
+                              headers={"Accept-Encoding": "gzip"})  # fmt: skip
             resp.raise_for_status()
             jobs = resp.json().get("jobs", [])
             for job in jobs:
