@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -16,9 +17,15 @@ app = typer.Typer(help="Scout fresher-friendly startup jobs into a daily Excel w
 console = Console()
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
 @app.callback()
 def main() -> None:
     """Job-Search-Agent CLI."""
+    # Config, data and workbooks are project-relative; work from any terminal folder.
+    if (PROJECT_ROOT / "pyproject.toml").exists():
+        os.chdir(PROJECT_ROOT)
 
 
 @app.command()
