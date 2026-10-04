@@ -244,6 +244,7 @@ async def run_pipeline(settings: Settings, options: RunOptions | None = None) ->
             )
             summary = {
                 **run_metrics.summary(),
+                "run_date": state.get("run_date"),
                 "duration_min": round((time.monotonic() - started) / 60, 2),
                 "outcome": state.get("outcome", {}),
                 "aborted": state.get("abort"),

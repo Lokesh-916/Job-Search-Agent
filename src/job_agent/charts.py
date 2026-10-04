@@ -121,10 +121,11 @@ def latency_chart(calls: list, label: str, theme: Theme, out: Path) -> Path | No
                    edgecolors=theme.surface, linewidths=1.5, zorder=3)  # fmt: skip
         median = xs[n // 2]
         ax.plot([median, median], [y_of[s] - 0.3, y_of[s] + 0.3], color=theme.text, linewidth=2)
-        ax.text(median, y_of[s] + 0.36, f"median {median:.1f}s · n={n}", ha="center",
+        ax.text(xs[-1], y_of[s], f"   median {median:.1f}s · n={n}", va="center",
                 color=theme.muted, fontsize=8)  # fmt: skip
     ax.set_yticks(list(y_of.values()), list(y_of.keys()), color=theme.text)
-    ax.set_ylim(-0.6, len(stages) - 0.2)
+    ax.set_ylim(-0.6, len(stages) - 0.4)
+    ax.set_xlim(0, max(max(v) for v in by_stage.values()) * 1.35)  # room for the labels
     ax.set_xlabel("seconds per call", color=theme.muted, fontsize=9)
     return _save(fig, out, height)
 
@@ -137,7 +138,8 @@ def history_chart(runs: list, theme: Theme, out: Path) -> Path | None:
     for r in runs:
         s = json.loads(r["summary_json"] or "{}")
         if s.get("duration_min") is not None:
-            by_model[r["model"]].append((r["started_at"][:10], s["duration_min"]))
+            day = s.get("run_date") or r["started_at"][:10]
+            by_model[r["model"]].append((day, s["duration_min"]))
     models = list(by_model)[: len(theme.series)]
     height = 4.0
     fig, ax = _axes(theme, "Run duration over time", "Minutes per run, by model", height)
@@ -161,7 +163,8 @@ def render_all(store: Store, out_dir: Path) -> list[Path]:
         return []
     latest = runs[-1]
     summary = json.loads(latest["summary_json"] or "{}")
-    label = f"{latest['started_at'][:10]} · {latest['model'].split(':', 1)[-1]}"
+    day = summary.get("run_date") or latest["started_at"][:10]
+    label = f"{day} · {latest['model'].split(':', 1)[-1]}"
     calls = store.llm_calls(latest["run_id"])
     made: list[Path] = []
     for theme in (LIGHT, DARK):
