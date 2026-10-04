@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -240,3 +241,41 @@ def build_report(
         key=lambda r: -r["Roles in this sheet"],
     )
     return report
+
+
+def drop_reason(rec: dict[str, Any]) -> str:
+    """Short, chart-friendly label for why a rejected job was dropped."""
+    reason = rec.get("Reject reason") or ""
+    if reason.startswith("Triage"):
+        return "Non-technical" if rec.get("Category") == "non_technical" else "Not entry-level"
+    if "India" in reason:
+        return "Not open to India"
+    if "pay" in reason.lower():
+        return "Pay below floor"
+    if "years" in reason:
+        return "Not entry-level"
+    if "sponsorship" in reason.lower():
+        return "No visa sponsorship"
+    return "Other"
+
+
+def job_flow(report: Report, threshold: float) -> list[tuple[str, str, int]]:
+    """(source, target, count) links from fetch to top picks, for the Sankey chart."""
+    links: Counter = Counter()
+    if report.pending:
+        links[("Fetched", "Not processed yet")] += report.pending
+    for rec in report.jobs:
+        links[("Fetched", "Triaged")] += 1
+        bucket, score = rec["_bucket"], rec["Score"]
+        if bucket == "rejected" and (rec.get("Reject reason") or "").startswith("Triage"):
+            links[("Triaged", drop_reason(rec))] += 1
+            continue
+        links[("Triaged", "Passed triage")] += 1
+        if bucket == "rejected":
+            links[("Passed triage", drop_reason(rec))] += 1
+        elif score is None:
+            links[("Passed triage", "Needs review")] += 1
+        else:
+            links[("Passed triage", "Scored")] += 1
+            links[("Scored", "Top picks" if score >= threshold else "Worth a look")] += 1
+    return [(a, b, n) for (a, b), n in links.items()]

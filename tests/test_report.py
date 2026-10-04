@@ -48,3 +48,29 @@ def test_untriaged_job_is_pending_not_listed(tmp_path):
         s.save_detail("1", DETAIL, "2026-10-03T00:00:00+00:00")
         report = build_report(s, Settings(), {"USD": 96.0}, run_date="2026-10-04")
     assert report.jobs == [] and report.pending == 1 and report.companies == []
+
+
+def test_job_flow_conserves_jobs():
+    from job_agent.report import Report, job_flow
+
+    def rec(bucket, score=None, reason="", category="backend"):
+        return {"_bucket": bucket, "Score": score, "Reject reason": reason, "Category": category}
+
+    rep = Report(
+        jobs=[
+            rec("rejected", reason="Triage: sales", category="non_technical"),
+            rec("rejected", reason="Triage: needs 2+ years"),
+            rec("rejected", reason="Not open to candidates in India and no visa sponsorship"),
+            rec("needs_review"),
+            rec("remote_india", 80),
+            rec("india_onsite", 60),
+        ],
+        pending=4,
+    )
+    flow = {(a, b): n for a, b, n in job_flow(rep, threshold=75)}
+    assert flow[("Fetched", "Not processed yet")] == 4 and flow[("Fetched", "Triaged")] == 6
+    assert flow[("Triaged", "Non-technical")] == 1 and flow[("Triaged", "Not entry-level")] == 1
+    assert flow[("Passed triage", "Not open to India")] == 1
+    assert flow[("Scored", "Top picks")] == 1 and flow[("Scored", "Worth a look")] == 1
+    out_of_triaged = sum(n for (a, _), n in flow.items() if a == "Triaged")
+    assert out_of_triaged == flow[("Fetched", "Triaged")]
