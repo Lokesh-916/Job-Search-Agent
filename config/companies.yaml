@@ -1,60 +1,84 @@
-# Curated companies for the community feed. Every entry here was checked to have a live
-# public job board. Add more freely: name, platform (ats), board id (slug), India presence.
-# Platforms supported so far: greenhouse, lever. Workday / SmartRecruiters / Ashby are next.
+# Curated companies for the community feed (India jobs only). Every entry was checked to
+# have a live public job board with India openings. Add more freely.
+#   ats: greenhouse | lever | ashby | smartrecruiters | workday | amazon
+#   workday entries also need `site: <cluster>/<site>` (from the careers page URL).
+# Companies without a public board (Flipkart, Zomato, Razorpay, Google, Microsoft...) are
+# covered through Adzuna searches instead.
 
 big_tech:
+  - { name: Amazon, ats: amazon, slug: amazon }
+  - { name: NVIDIA, ats: workday, slug: nvidia, site: wd5/NVIDIAExternalCareerSite }
+  - { name: Adobe, ats: workday, slug: adobe, site: wd5/external_experienced }
+  - { name: Salesforce, ats: workday, slug: salesforce, site: wd12/External_Career_Site }
+  - { name: Intel, ats: workday, slug: intel, site: wd1/External }
+  - { name: Cisco, ats: workday, slug: cisco, site: wd5/Cisco_Careers }
+  - { name: HP, ats: workday, slug: hp, site: wd5/ExternalCareerSite }
+  - { name: Autodesk, ats: workday, slug: autodesk, site: wd1/Ext }
+  - { name: Micron, ats: workday, slug: micron, site: wd1/External }
+  - { name: Analog Devices, ats: workday, slug: analogdevices, site: wd1/External }
+  - { name: Workday, ats: workday, slug: workday, site: wd5/Workday }
+  - { name: LinkedIn, ats: lever, slug: linkedin }
+  - { name: ServiceNow, ats: smartrecruiters, slug: servicenow }
+  - { name: Freshworks, ats: smartrecruiters, slug: freshworks }
+  - { name: Pinterest, ats: greenhouse, slug: pinterest }
+  - { name: Reddit, ats: greenhouse, slug: reddit }
+  - { name: Dropbox, ats: greenhouse, slug: dropbox }
+  - { name: Okta, ats: greenhouse, slug: okta }
+  - { name: Twilio, ats: greenhouse, slug: twilio }
+  - { name: MongoDB, ats: greenhouse, slug: mongodb }
+  - { name: Datadog, ats: greenhouse, slug: datadog }
+  - { name: Cloudflare, ats: greenhouse, slug: cloudflare }
+  - { name: Elastic, ats: greenhouse, slug: elastic }
+  - { name: Instacart, ats: greenhouse, slug: instacart }
+  - { name: Coinbase, ats: greenhouse, slug: coinbase }
+  - { name: Agoda, ats: greenhouse, slug: agoda }
+  - { name: GitLab, ats: greenhouse, slug: gitlab }
+  - { name: Samsara, ats: greenhouse, slug: samsara }
+  - { name: Affirm, ats: greenhouse, slug: affirm }
+  - { name: Rubrik, ats: greenhouse, slug: rubrik }
   - { name: Airbnb, ats: greenhouse, slug: airbnb }
-  - { name: Pinterest, ats: greenhouse, slug: pinterest, india: true }
-  - { name: Reddit, ats: greenhouse, slug: reddit, india: true }
-  - { name: Dropbox, ats: greenhouse, slug: dropbox, india: true }
-  - { name: Spotify, ats: lever, slug: spotify }
-  - { name: Palantir, ats: lever, slug: palantir }
-  - { name: Okta, ats: greenhouse, slug: okta, india: true }
-  - { name: Twilio, ats: greenhouse, slug: twilio, india: true }
-  - { name: MongoDB, ats: greenhouse, slug: mongodb, india: true }
-  - { name: Datadog, ats: greenhouse, slug: datadog, india: true }
-  - { name: Cloudflare, ats: greenhouse, slug: cloudflare, india: true }
-  - { name: Elastic, ats: greenhouse, slug: elastic, india: true }
-  - { name: Instacart, ats: greenhouse, slug: instacart, india: true }
-  - { name: Lyft, ats: greenhouse, slug: lyft }
-  - { name: Robinhood, ats: greenhouse, slug: robinhood }
-  - { name: Coinbase, ats: greenhouse, slug: coinbase, india: true }
-  - { name: Agoda, ats: greenhouse, slug: agoda, india: true }
-  - { name: GitLab, ats: greenhouse, slug: gitlab, india: true }
-  - { name: Samsara, ats: greenhouse, slug: samsara, india: true }
-  - { name: Affirm, ats: greenhouse, slug: affirm, india: true }
-  - { name: Rubrik, ats: greenhouse, slug: rubrik, india: true }
-  - { name: Duolingo, ats: greenhouse, slug: duolingo }
-  - { name: Asana, ats: greenhouse, slug: asana }
+
+mnc:
+  - { name: Bosch, ats: smartrecruiters, slug: boschgroup }
+  - { name: PayPal, ats: workday, slug: paypal, site: wd1/jobs }
+  - { name: Mastercard, ats: workday, slug: mastercard, site: wd1/CorporateCareers }
+  - { name: Visa, ats: workday, slug: visa, site: wd5/Visa }
+  - { name: Target, ats: workday, slug: target, site: wd5/targetcareers }
+  - { name: Morgan Stanley, ats: workday, slug: ms, site: wd5/External }
+  - { name: Deutsche Bank, ats: workday, slug: db, site: wd3/DBWebsite }
+  - { name: Philips, ats: workday, slug: philips, site: wd3/jobs-and-careers }
+  - { name: Thoughtworks, ats: greenhouse, slug: thoughtworks }
 
 unicorn:
-  - { name: Stripe, ats: greenhouse, slug: stripe, india: true }
-  - { name: Databricks, ats: greenhouse, slug: databricks, india: true }
+  - { name: Swiggy, ats: smartrecruiters, slug: swiggy }
+  - { name: Stripe, ats: greenhouse, slug: stripe }
+  - { name: Databricks, ats: greenhouse, slug: databricks }
+  - { name: OpenAI, ats: ashby, slug: openai }
   - { name: Anthropic, ats: greenhouse, slug: anthropic }
+  - { name: Notion, ats: ashby, slug: notion }
+  - { name: Canva, ats: smartrecruiters, slug: canva }
+  - { name: Cursor, ats: ashby, slug: cursor }
+  - { name: ElevenLabs, ats: ashby, slug: elevenlabs }
   - { name: Figma, ats: greenhouse, slug: figma }
-  - { name: Discord, ats: greenhouse, slug: discord }
-  - { name: Scale AI, ats: greenhouse, slug: scaleai }
+  - { name: Harness, ats: greenhouse, slug: harnessinc }
+  - { name: Mixpanel, ats: greenhouse, slug: mixpanel }
   - { name: Vercel, ats: greenhouse, slug: vercel }
-  - { name: Brex, ats: greenhouse, slug: brex }
-  - { name: Harness, ats: greenhouse, slug: harnessinc, india: true }
-  - { name: Mixpanel, ats: greenhouse, slug: mixpanel, india: true }
-  - { name: Gusto, ats: greenhouse, slug: gusto }
-  - { name: Chime, ats: greenhouse, slug: chime }
-  - { name: SoFi, ats: greenhouse, slug: sofi }
-  - { name: Intercom, ats: greenhouse, slug: intercom }
-  - { name: Cockroach Labs, ats: greenhouse, slug: cockroachlabs }
-  - { name: Netlify, ats: greenhouse, slug: netlify }
-  - { name: Airtable, ats: greenhouse, slug: airtable }
-  - { name: Paytm, ats: lever, slug: paytm, india: true }
-  - { name: Meesho, ats: lever, slug: meesho, india: true }
-  - { name: CRED, ats: lever, slug: cred, india: true }
-  - { name: Groww, ats: greenhouse, slug: groww, india: true }
-  - { name: Zeta, ats: lever, slug: zeta, india: true }
-  - { name: InMobi, ats: greenhouse, slug: inmobi, india: true }
-  - { name: Glance, ats: greenhouse, slug: glance, india: true }
-  - { name: Druva, ats: greenhouse, slug: druva, india: true }
-  - { name: Mindtickle, ats: lever, slug: mindtickle, india: true }
-  - { name: slice, ats: greenhouse, slug: slice, india: true }
+  - { name: Paytm, ats: lever, slug: paytm }
+  - { name: Meesho, ats: lever, slug: meesho }
+  - { name: CRED, ats: lever, slug: cred }
+  - { name: Groww, ats: greenhouse, slug: groww }
+  - { name: Zeta, ats: lever, slug: zeta }
+  - { name: InMobi, ats: greenhouse, slug: inmobi }
+  - { name: Glance, ats: greenhouse, slug: glance }
+  - { name: Druva, ats: greenhouse, slug: druva }
+  - { name: Mindtickle, ats: lever, slug: mindtickle }
+  - { name: slice, ats: greenhouse, slug: slice }
+  - { name: Pocket FM, ats: lever, slug: pocketfm }
+  - { name: Unacademy, ats: smartrecruiters, slug: unacademy }
+  - { name: Truecaller, ats: greenhouse, slug: truecaller }
 
-mnc: []      # Deloitte, Accenture, banks, consulting: Workday / SmartRecruiters fetchers (next)
-startup: []  # filled from YC's public directory and Indian startup lists (next)
+startup:
+  - { name: FamPay, ats: lever, slug: fampay }
+  - { name: Sarvam AI, ats: ashby, slug: sarvam }
+  - { name: Atlan, ats: ashby, slug: atlan }
+  - { name: Observe.AI, ats: greenhouse, slug: observeai }
