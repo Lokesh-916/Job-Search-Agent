@@ -8,14 +8,17 @@ simply resumes on the next invocation without redoing finished work.
 
 from __future__ import annotations
 
+import asyncio
 import operator
 import time
-from datetime import date
+from collections import Counter
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Annotated, Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
+from job_agent import metrics
 from job_agent.export import workbook_path, write_workbook
 from job_agent.fx import load_inr_rates
 from job_agent.notify import NotifyError, Telegram
@@ -42,6 +45,7 @@ class PipelineState(TypedDict, total=False):
     abort: str | None
     workbook: str | None
     top: list[dict]
+    outcome: dict[str, Any]
 
 
 def build_graph(settings: Settings, store: Store):
@@ -92,12 +96,14 @@ def build_graph(settings: Settings, store: Store):
             store, settings, rates, research_columns(store), run_date=state["run_date"]
         )
         minutes = round((time.monotonic() - state["started"]) / 60, 1)
+        m = metrics.current()
         info = [
             ("Run date", state["run_date"]),
             ("Model", settings.llm.model),
             ("USD → INR", round(rates.get("USD", 0), 2)),
             ("Duration (min)", minutes),
             *state.get("log", []),
+            *(m.log_lines() if m else []),
         ]
         path = write_workbook(
             report,
@@ -106,7 +112,19 @@ def build_graph(settings: Settings, store: Store):
             info,
         )
         live = [j for j in report.jobs if j["_bucket"] != "rejected" and j["Score"] is not None]
-        return {"workbook": str(path), "top": live[:5], "log": [("Workbook", path.name)]}
+        outcome = {
+            "buckets": dict(Counter(j["_bucket"] for j in report.jobs)),
+            "verdicts": dict(Counter(j["Verdict"] for j in report.jobs if j["Verdict"])),
+            "scored": len(live),
+            "top_picks": sum(1 for j in live if j["Score"] >= settings.scoring.top_pick_threshold),
+            "pending": report.pending,
+        }
+        return {
+            "workbook": str(path),
+            "top": live[:5],
+            "outcome": outcome,
+            "log": [("Workbook", path.name)],
+        }
 
     def notify(state: PipelineState) -> dict:
         if not state["options"].get("notify", True):
@@ -127,7 +145,7 @@ def build_graph(settings: Settings, store: Store):
     for name, fn in [("preflight", preflight), ("fetch", fetch), ("triage", triage),
                      ("extract", extract), ("research", research), ("assess", assess),
                      ("export", export), ("notify", notify)]:  # fmt: skip
-        g.add_node(name, fn)
+        g.add_node(name, _timed(name, fn))
     g.add_edge(START, "preflight")
     g.add_conditional_edges("preflight", lambda s: "notify" if s.get("abort") else "fetch")
     for a, b in [("fetch", "triage"), ("triage", "extract"), ("extract", "research"),
@@ -135,6 +153,33 @@ def build_graph(settings: Settings, store: Store):
                  ("notify", END)]:  # fmt: skip
         g.add_edge(a, b)
     return g.compile()
+
+
+def _timed(name: str, fn):
+    """Wrap a node so its wall time lands in the active run metrics."""
+    if asyncio.iscoroutinefunction(fn):
+
+        async def run_async(state: PipelineState) -> dict:
+            with metrics.StageTimer(name):
+                return await fn(state)
+
+        return run_async
+
+    def run_sync(state: PipelineState) -> dict:
+        with metrics.StageTimer(name):
+            return fn(state)
+
+    return run_sync
+
+
+def _perf_line(m: metrics.RunMetrics | None, started: float) -> str:
+    minutes = (time.monotonic() - started) / 60
+    if m is None or not m.calls:
+        return f"⏱ {minutes:.1f} min"
+    out_tok = sum(c.output_tokens or 0 for c in m.calls)
+    eval_s = sum(c.eval_s or 0 for c in m.calls)
+    speed = f" · {out_tok / eval_s:.0f} tok/s" if eval_s else ""
+    return f"⏱ {minutes:.1f} min · {len(m.calls)} LLM calls{speed}"
 
 
 def _digest(state: PipelineState) -> str:
@@ -148,17 +193,37 @@ def _digest(state: PipelineState) -> str:
         )
     if len(lines) == 1:
         lines.append("No scored jobs this run.")
+    lines.append(_perf_line(metrics.current(), state["started"]))
     return "\n".join(lines)
 
 
 async def run_pipeline(settings: Settings, options: RunOptions | None = None) -> PipelineState:
-    with Store(settings.paths.data_dir / "jobs.db") as store:
-        graph = build_graph(settings, store)
-        return await graph.ainvoke(
-            {
-                "options": options or {},
-                "run_date": date.today().isoformat(),
-                "started": time.monotonic(),
-                "log": [],
+    options = options or {}
+    started_at = datetime.now(UTC).isoformat(timespec="seconds")
+    run_metrics = metrics.RunMetrics()
+    token = metrics.activate(run_metrics)
+    try:
+        with Store(settings.paths.data_dir / "jobs.db") as store, metrics.VramSampler(run_metrics):
+            graph = build_graph(settings, store)
+            started = time.monotonic()
+            state = await graph.ainvoke(
+                {
+                    "options": options,
+                    "run_date": date.today().isoformat(),
+                    "started": started,
+                    "log": [],
+                }
+            )
+            summary = {
+                **run_metrics.summary(),
+                "duration_min": round((time.monotonic() - started) / 60, 2),
+                "outcome": state.get("outcome", {}),
+                "aborted": state.get("abort"),
             }
-        )
+            store.save_run(
+                started_at, started_at, settings.llm.model, dict(options), summary,
+                run_metrics.calls,
+            )  # fmt: skip
+            return state
+    finally:
+        metrics._current.reset(token)
