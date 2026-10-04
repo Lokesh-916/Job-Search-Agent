@@ -127,9 +127,10 @@ class CommunityStore:
     def live_events(self, since: str, today: str) -> list[sqlite3.Row]:
         return self.db.execute(
             """SELECT * FROM events WHERE last_seen >= ?
-                 AND COALESCE(deadline, ends, starts, '9999') >= ?
-               ORDER BY COALESCE(starts, deadline, '9999')""",
-            (since, today),
+                 AND COALESCE(ends, starts, deadline, '9999') >= ?
+                 AND (deadline IS NULL OR deadline >= ?)
+               ORDER BY COALESCE(deadline, starts, '9999')""",
+            (since, today, today),
         ).fetchall()
 
     def set_meta(self, key: str, value: str) -> None:
