@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -131,14 +132,14 @@ def draw_flow(ax, theme: Theme, flow: list) -> None:
     for d in cols:  # continuing nodes first, then drop-outs by size
         cols[d].sort(key=lambda n: (not outgoing[n], -value[n]))
 
-    gap, min_h = 0.035, 0.014
+    gap, min_h = 0.07, 0.022
     biggest = max(sum(value[n] for n in col) for col in cols.values())
     scale = (1 - gap * (max(len(c) for c in cols.values()) - 1)) / biggest
     max_d = max(cols)
     width = 0.012
     pos: dict[str, tuple[float, float, float]] = {}  # x, y_top, height
     for d, col in cols.items():
-        x = 0.02 + d * (0.74 / max(max_d, 1))
+        x = 0.12 + d * (0.68 / max(max_d, 1))
         heights = [max(value[n] * scale, min_h) for n in col]
         y = 0.5 + (sum(heights) + gap * (len(col) - 1)) / 2
         for n, h in zip(col, heights, strict=True):
@@ -175,10 +176,13 @@ def draw_flow(ax, theme: Theme, flow: list) -> None:
         box = "round,pad=0,rounding_size=0.003"
         ax.add_patch(FancyBboxPatch((x, y - h), width, h, boxstyle=box, facecolor=color,
                                     edgecolor="none", zorder=2))  # fmt: skip
-        ax.text(x + width + 0.008, y - h / 2, n, va="center", fontsize=8.5, color=theme.text,
+        first = depth[n] == 0
+        lx, ha = (x - 0.01, "right") if first else (x + width + 0.008, "left")
+        ax.text(lx, y - h / 2, f"{n}  ", va="center", ha=ha, fontsize=8.5, color=theme.text,
                 zorder=3)  # fmt: skip
-        ax.text(x + width + 0.008, y - h / 2 - 0.028, f"{value[n]:,}", va="center", fontsize=8,
-                color=theme.muted, weight="bold", zorder=3)  # fmt: skip
+        ax.annotate(f"{value[n]:,}", (lx, y - h / 2), xytext=(0 if first else 0, -11),
+                    textcoords="offset points", ha=ha, va="center", fontsize=8,
+                    color=theme.muted, weight="bold", zorder=3)  # fmt: skip
     ax.set_xlim(0, 1)
     ax.set_ylim(-0.05, 1.05)
     ax.axis("off")
@@ -219,11 +223,12 @@ def latency_chart(theme: Theme, calls: list[dict], label: str, out: Path):
     every = [v for s in stages for v in by_stage[s]]
     lo, hi = math.log10(min(every) * 0.6), math.log10(max(every) * 1.8)
     grid = np.linspace(lo, hi, 400)
+    medians: dict[str, str] = {}
     fig = figure(theme, 10, 1.9 + 1.0 * len(stages))
     header(fig, theme, "How long one LLM call takes",
            f"Distribution per stage on a log scale; ticks are individual calls · {label}",
            eyebrow="Latency")  # fmt: skip
-    ax = fig.add_axes((0.12, 0.14, 0.82, 0.62 - 0.02 * (4 - len(stages))))
+    ax = fig.add_axes((0.2, 0.14, 0.76, 0.62 - 0.02 * (4 - len(stages))))
     clean_axes(ax, theme, grid="x")
     for i, stage in enumerate(stages):
         y = len(stages) - 1 - i
@@ -237,9 +242,8 @@ def latency_chart(theme: Theme, calls: list[dict], label: str, out: Path):
         med = float(np.median(by_stage[stage]))
         ax.vlines(math.log10(med), y, y + float(np.interp(math.log10(med), grid, dens)),
                   color=theme.text, linewidth=1.4, zorder=4 + i)  # fmt: skip
-        ax.text(hi, y + 0.18, f"median {fmt_seconds(med)} · {len(xs)} calls  ", ha="right",
-                fontsize=8.5, color=theme.muted, zorder=5 + i)  # fmt: skip
-    ax.set_yticks(range(len(stages)), list(reversed(stages)))
+        medians[stage] = f"{stage}\nmedian {fmt_seconds(med)} · {len(xs)} calls"
+    ax.set_yticks(range(len(stages)), [medians[s] for s in reversed(stages)], fontsize=9)
     for t in ax.get_yticklabels():
         t.set_color(theme.text)
     ticks = [(math.log10(v), s) for v, s in LAT_TICKS if lo <= math.log10(v) <= hi]
@@ -262,7 +266,10 @@ def hero_chart(theme: Theme, summary: dict, calls: list[dict], model: str, out: 
     tokens = sum(c.get("output_tokens") or 0 for c in calls)
     speed = f"{tokens / eval_s:.0f}" if eval_s else "—"
     fig = figure(theme, 12, 6.4)
-    header(fig, theme, f"Run of {summary.get('run_date', '')}",
+    day = summary.get("run_date", "")
+    d = date.fromisoformat(day) if day else None
+    pretty = f"{d.day} {d:%b %Y}" if d else ""
+    header(fig, theme, f"Run of {pretty}",
            f"{model} on one RTX 2000 Ada · fetch → triage → extract → research → assess",
            eyebrow="Job-Search-Agent · run report")  # fmt: skip
     kpis = [

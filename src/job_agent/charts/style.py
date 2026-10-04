@@ -19,7 +19,7 @@ from matplotlib.patches import FancyBboxPatch  # noqa: E402
 
 logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
 
-FONTS = ["Ubuntu Sans", "Inter", "Segoe UI", "Noto Sans", "DejaVu Sans"]
+FONTS = ["Ubuntu", "Inter", "Segoe UI", "Noto Sans", "DejaVu Sans"]
 LLM_STAGES = ("triage", "extract", "research", "assess")
 
 
