@@ -44,6 +44,11 @@ def test_kept_roles(title, kind, level, category):
         ("Enterprise Account Executive", "Mumbai", "", "Not a tech role"),
         ("Software Engineer", "Seattle, WA", "", "Not in India"),
         ("Backend Engineer", "Hyderabad", "You have 3+ years of experience with Go", "Needs 3+ years"),
+        ("Software Engineering Technical Leader - 10+yrs", "Bangalore", "", "Senior role"),
+        ("Software Engineer - Python - 4 to 8 yrs", "Bangalore", "", "Needs 4+ years"),
+        ("Software Development Engineer 4", "Noida", "", "Senior role"),
+        ("Staff Engineer I", "Bengaluru", "", "Senior role"),
+        ("IN_Bosch Rexroth India_Engineer / Executive_Sales_Industrial", "New Delhi", "", "Not a tech role"),
     ],
 )  # fmt: skip
 def test_dropped_roles(title, location, description, reason):
@@ -60,3 +65,13 @@ def test_stipend():
     assert stipend_of("Stipend: 25,000 per month") == "₹25,000"
     assert stipend_of("₹15000 - 20000/month") == "₹15,000–20,000"
     assert stipend_of("no money mentioned") is None
+
+
+def test_description_less_sources_are_flagged_not_promoted():
+    p = Posting("workday", "Cisco", "1", "Software Engineer", "u", location="Bangalore, India")
+    v = classify(p)
+    assert v.keep and v.level == "Check experience"
+    p2 = Posting(
+        "workday", "Micron", "2", "Graduate Engineering Technician", "u", location="Hyderabad"
+    )
+    assert classify(p2).level == "Entry level"

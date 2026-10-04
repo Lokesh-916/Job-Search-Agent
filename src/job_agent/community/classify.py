@@ -53,11 +53,13 @@ NON_TECH = re.compile(
     re.I,
 )
 SENIOR = re.compile(
-    r"\b(senior|sr\.?|staff|principal|lead|manager|director|head|vp|vice president|architect|"
-    r"chief|distinguished|fellow|expert)\b|\b(II|III|IV|2|3)\s*$|engineer (II|III|2|3)\b|"
-    r"sde[- ]?(ii|iii|2|3)\b",
+    r"\b(senior|sr\.?|staff|principal|lead|leader|manager|director|head|vp|vice president|architect|"
+    r"chief|distinguished|fellow|expert|specialist)\b|\b(II|III|IV|V|[2-5])\s*$|"
+    r"(engineer|developer|sde|scientist|analyst)[- ]?(II|III|IV|[2-5])\b",
     re.I,
 )
+TITLE_YEARS = re.compile(r"(\d{1,2})\s*\+?\s*(?:-|to)?\s*\d{0,2}\s*\+?\s*y(?:rs?|ears?)?\b", re.I)
+NO_DESCRIPTION_SOURCES = {"workday", "smartrecruiters"}  # listing APIs without job text
 ENTRY = re.compile(
     r"new grad|graduate|fresher|campus|entry[- ]level|early career|junior|jr\.?\b|trainee|"
     r"associate (software|engineer|developer|data)|\bsde[- ]?(i|1)\b|engineer (i|1)\b|"
@@ -114,18 +116,23 @@ def stipend_of(text: str) -> str | None:
 
 
 def classify(p: Posting) -> Verdict:
+    title = p.title.replace("_", " ")  # "IN_Bosch_Engineer_Sales" style titles
     if not in_india(p.location):
         return Verdict(False, "Not in India")
-    category = category_of(p.title, p.department)
+    category = category_of(title, p.department)
     if category is None:
         return Verdict(False, "Not a tech role")
-    if INTERN.search(f"{p.title} {p.employment_type}") or p.extra.get("internship"):
+    if INTERN.search(f"{title} {p.employment_type}") or p.extra.get("internship"):
         return Verdict(True, "Internship", "internship", "Internship", category)
-    if SENIOR.search(p.title) and not ENTRY.search(p.title):
+    if SENIOR.search(title):
         return Verdict(False, "Senior role")
-    if ENTRY.search(p.title) or ENTRY.search(p.description[:1500]):
+    if (m := TITLE_YEARS.search(title)) and int(m.group(1)) >= 2:
+        return Verdict(False, f"Needs {m.group(1)}+ years")
+    if ENTRY.search(title) or ENTRY.search(p.description[:1500]):
         return Verdict(True, "Entry level", "job", "Entry level", category)
     years = min_years(p.description)
     if years is not None and years >= 2:
         return Verdict(False, f"Needs {years}+ years")
+    if p.source in NO_DESCRIPTION_SOURCES:  # can't read the requirements: flag, don't promote
+        return Verdict(True, "Experience unknown", "job", "Check experience", category)
     return Verdict(True, "Experience not stated", "job", "Not specified", category)
