@@ -9,12 +9,13 @@ from __future__ import annotations
 import asyncio
 import html
 import re
+from datetime import date
 
 from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
-from job_agent.community.digest import distinct, event_line, job_line
+from job_agent.community.digest import distinct, event_line, job_line, upcoming
 from job_agent.community.service import (
     current,
     db_path,
@@ -175,7 +176,7 @@ def build_app(settings: Settings) -> Application:
             lines = [job_line(r, "pay") for r in interns[:12]]
             title = f"🎓 <b>Paid internships</b> · {len(interns)} open"
         else:
-            soon = sorted(events, key=lambda e: e["deadline"] or e["starts"] or "9999")
+            soon = upcoming(events, date.today().isoformat())
             lines = [event_line(e) for e in soon[:12]]
             title = f"🏆 <b>Hackathons & events</b> · {len(events)} upcoming"
         await reply(update, "\n".join([title, "", *(lines or ["Nothing yet today."]),

@@ -69,3 +69,14 @@ def test_digest_caps_each_company():
 
     rows = [{"company": c} for c in ["Amazon"] * 5 + ["CRED"]]
     assert [r["company"] for r in per_company(rows, 2)] == ["Amazon", "Amazon", "CRED"]
+
+
+def test_upcoming_keeps_open_registration_and_future_starts():
+    from job_agent.community.digest import upcoming
+
+    ev = [
+        {"name": "ongoing", "deadline": None, "starts": "2025-12-29"},
+        {"name": "open", "deadline": "2026-10-07", "starts": "2026-10-01"},
+        {"name": "future", "deadline": None, "starts": "2026-10-09"},
+    ]
+    assert [e["name"] for e in upcoming(ev, "2026-10-05")] == ["open", "future"]

@@ -126,6 +126,13 @@ def distinct(rows: list) -> list:
     return out
 
 
+def upcoming(events: list, today: str) -> list:
+    """Events you can still sign up for: registration open, or starting today or later."""
+    open_ = [e for e in events if (e["deadline"] and e["deadline"] >= today)
+             or (not e["deadline"] and (e["starts"] or "") >= today)]  # fmt: skip
+    return sorted(open_, key=lambda e: e["deadline"] or e["starts"] or "9999")
+
+
 def per_company(rows: list, cap: int) -> list:
     counts: dict[str, int] = {}
     out = []
@@ -142,7 +149,7 @@ def digest_text(jobs: list, interns: list, events: list, today: str, top: int = 
     jobs, interns = distinct(ranked(jobs)), distinct(ranked(interns))
     new_jobs = per_company([r for r in jobs if r["first_seen"] >= new_since] or jobs, 2)
     new_interns = per_company([r for r in interns if r["first_seen"] >= new_since] or interns, 2)
-    soon = sorted(events, key=lambda e: e["deadline"] or e["starts"] or "9999")[:5]
+    soon = upcoming(events, today)[:5]
     d = date.fromisoformat(today)
     lines = [
         f"🗞️ <b>Placement Feed · {d.day} {d:%b}</b>",
