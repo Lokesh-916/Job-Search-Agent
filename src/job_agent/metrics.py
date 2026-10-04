@@ -25,7 +25,7 @@ _current: ContextVar[RunMetrics | None] = ContextVar("job_agent_metrics", defaul
 @dataclass
 class LLMCall:
     stage: str
-    started: float
+    started: float  # seconds since the run started
     latency_s: float
     input_tokens: int | None = None
     output_tokens: int | None = None
@@ -42,6 +42,8 @@ class RunMetrics(BaseCallbackHandler):
     events: Counter = field(default_factory=Counter)
     stage_seconds: dict[str, float] = field(default_factory=lambda: defaultdict(float))
     vram_peak_mib: int | None = None
+    stage_spans: list[tuple[str, float, float]] = field(default_factory=list)  # name, start, end
+    t0: float = field(default_factory=time.perf_counter)
     _open: dict[UUID, tuple[float, str]] = field(default_factory=dict)
     _tools: dict[UUID, str] = field(default_factory=dict)
 
@@ -51,7 +53,7 @@ class RunMetrics(BaseCallbackHandler):
 
     def on_llm_end(self, response: LLMResult, *, run_id: UUID, **kw: Any) -> None:
         started, stage = self._open.pop(run_id, (time.perf_counter(), "other"))
-        call = LLMCall(stage, started, time.perf_counter() - started)
+        call = LLMCall(stage, started - self.t0, time.perf_counter() - started)
         gen = (
             response.generations[0][0] if response.generations and response.generations[0] else None
         )
@@ -69,7 +71,9 @@ class RunMetrics(BaseCallbackHandler):
 
     def on_llm_error(self, error: BaseException, *, run_id: UUID, **kw: Any) -> None:
         started, stage = self._open.pop(run_id, (time.perf_counter(), "other"))
-        self.calls.append(LLMCall(stage, started, time.perf_counter() - started, ok=False))
+        self.calls.append(
+            LLMCall(stage, started - self.t0, time.perf_counter() - started, ok=False)
+        )
 
     def on_tool_start(self, serialized, input_str, *, run_id, **kw) -> None:
         self._tools[run_id] = (serialized or {}).get("name", "tool")
@@ -97,6 +101,7 @@ class RunMetrics(BaseCallbackHandler):
             }
         return {
             "stage_seconds": {k: round(v, 1) for k, v in self.stage_seconds.items()},
+            "stage_spans": self.stage_spans,
             "llm": by_stage,
             "events": dict(self.events),
             "vram_peak_mib": self.vram_peak_mib,
@@ -148,7 +153,9 @@ class StageTimer:
 
     def __exit__(self, *exc: object) -> None:
         if (m := _current.get()) is not None:
-            m.stage_seconds[self.name] += time.perf_counter() - self.t0
+            end = time.perf_counter()
+            m.stage_seconds[self.name] += end - self.t0
+            m.stage_spans.append((self.name, round(self.t0 - m.t0, 2), round(end - m.t0, 2)))
 
 
 class VramSampler:

@@ -33,6 +33,9 @@ def test_calls_are_tagged_by_stage_and_summarised():
     assert s["llm"]["triage"]["tokens_per_s"] == 50.0  # 100 tokens / 2 s
     assert s["llm"]["assess"]["load_s"] == 0.5
     assert s["events"] == {"repair": 1} and "triage" in s["stage_seconds"]
+    [(name, start, end)] = s["stage_spans"]
+    assert name == "triage" and 0 <= start <= end
+    assert all(c.started >= 0 for c in m.calls)  # run-relative offsets
     assert any(k == "🤖 triage" for k, _ in m.log_lines())
 
 
