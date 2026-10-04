@@ -37,3 +37,20 @@ def test_user_lifecycle_and_suggestions(tmp_path):
         assert s.suggestions()[0]["roll_no"] == "CS23B1001"
         s.forget(42)
         assert s.user(42) is None and s.suggestions() == []
+
+
+def test_roster_with_and_without_header(tmp_path):
+    from job_agent.community.service import load_roster
+
+    (tmp_path / "a.csv").write_text("Roll No,Name\ncs23b1001,Asha\n", encoding="utf-8")
+    (tmp_path / "b.csv").write_text("CS23B1002,Ravi\n", encoding="utf-8")
+    assert load_roster(tmp_path / "a.csv") == {"CS23B1001": "Asha"}
+    assert load_roster(tmp_path / "b.csv") == {"CS23B1002": "Ravi"}
+    assert load_roster(tmp_path / "missing.csv") == {}
+
+
+def test_meta(tmp_path):
+    with CommunityStore(tmp_path / "c.db") as s:
+        assert s.get_meta("last_refresh") is None
+        s.set_meta("last_refresh", "2026-10-05T02:00:00+00:00")
+        assert s.get_meta("last_refresh").startswith("2026-10-05")

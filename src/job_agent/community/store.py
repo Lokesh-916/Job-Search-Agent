@@ -56,6 +56,10 @@ CREATE TABLE IF NOT EXISTS users (
     last_active TEXT,
     digests     INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS meta (
+    key   TEXT PRIMARY KEY,
+    value TEXT
+);
 CREATE TABLE IF NOT EXISTS suggestions (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     telegram_id INTEGER NOT NULL,
@@ -127,6 +131,14 @@ class CommunityStore:
                ORDER BY COALESCE(starts, deadline, '9999')""",
             (since, today),
         ).fetchall()
+
+    def set_meta(self, key: str, value: str) -> None:
+        with self.db:
+            self.db.execute("INSERT OR REPLACE INTO meta VALUES (?, ?)", (key, value))
+
+    def get_meta(self, key: str) -> str | None:
+        row = self.db.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
+        return row[0] if row else None
 
     # --- users ---------------------------------------------------------------------------
     def user(self, telegram_id: int) -> sqlite3.Row | None:
