@@ -1,0 +1,60 @@
+# Curated companies for the community feed. Every entry here was checked to have a live
+# public job board. Add more freely: name, platform (ats), board id (slug), India presence.
+# Platforms supported so far: greenhouse, lever. Workday / SmartRecruiters / Ashby are next.
+
+big_tech:
+  - { name: Airbnb, ats: greenhouse, slug: airbnb }
+  - { name: Pinterest, ats: greenhouse, slug: pinterest, india: true }
+  - { name: Reddit, ats: greenhouse, slug: reddit, india: true }
+  - { name: Dropbox, ats: greenhouse, slug: dropbox, india: true }
+  - { name: Spotify, ats: lever, slug: spotify }
+  - { name: Palantir, ats: lever, slug: palantir }
+  - { name: Okta, ats: greenhouse, slug: okta, india: true }
+  - { name: Twilio, ats: greenhouse, slug: twilio, india: true }
+  - { name: MongoDB, ats: greenhouse, slug: mongodb, india: true }
+  - { name: Datadog, ats: greenhouse, slug: datadog, india: true }
+  - { name: Cloudflare, ats: greenhouse, slug: cloudflare, india: true }
+  - { name: Elastic, ats: greenhouse, slug: elastic, india: true }
+  - { name: Instacart, ats: greenhouse, slug: instacart, india: true }
+  - { name: Lyft, ats: greenhouse, slug: lyft }
+  - { name: Robinhood, ats: greenhouse, slug: robinhood }
+  - { name: Coinbase, ats: greenhouse, slug: coinbase, india: true }
+  - { name: Agoda, ats: greenhouse, slug: agoda, india: true }
+  - { name: GitLab, ats: greenhouse, slug: gitlab, india: true }
+  - { name: Samsara, ats: greenhouse, slug: samsara, india: true }
+  - { name: Affirm, ats: greenhouse, slug: affirm, india: true }
+  - { name: Rubrik, ats: greenhouse, slug: rubrik, india: true }
+  - { name: Duolingo, ats: greenhouse, slug: duolingo }
+  - { name: Asana, ats: greenhouse, slug: asana }
+
+unicorn:
+  - { name: Stripe, ats: greenhouse, slug: stripe, india: true }
+  - { name: Databricks, ats: greenhouse, slug: databricks, india: true }
+  - { name: Anthropic, ats: greenhouse, slug: anthropic }
+  - { name: Figma, ats: greenhouse, slug: figma }
+  - { name: Discord, ats: greenhouse, slug: discord }
+  - { name: Scale AI, ats: greenhouse, slug: scaleai }
+  - { name: Vercel, ats: greenhouse, slug: vercel }
+  - { name: Brex, ats: greenhouse, slug: brex }
+  - { name: Harness, ats: greenhouse, slug: harnessinc, india: true }
+  - { name: Mixpanel, ats: greenhouse, slug: mixpanel, india: true }
+  - { name: Gusto, ats: greenhouse, slug: gusto }
+  - { name: Chime, ats: greenhouse, slug: chime }
+  - { name: SoFi, ats: greenhouse, slug: sofi }
+  - { name: Intercom, ats: greenhouse, slug: intercom }
+  - { name: Cockroach Labs, ats: greenhouse, slug: cockroachlabs }
+  - { name: Netlify, ats: greenhouse, slug: netlify }
+  - { name: Airtable, ats: greenhouse, slug: airtable }
+  - { name: Paytm, ats: lever, slug: paytm, india: true }
+  - { name: Meesho, ats: lever, slug: meesho, india: true }
+  - { name: CRED, ats: lever, slug: cred, india: true }
+  - { name: Groww, ats: greenhouse, slug: groww, india: true }
+  - { name: Zeta, ats: lever, slug: zeta, india: true }
+  - { name: InMobi, ats: greenhouse, slug: inmobi, india: true }
+  - { name: Glance, ats: greenhouse, slug: glance, india: true }
+  - { name: Druva, ats: greenhouse, slug: druva, india: true }
+  - { name: Mindtickle, ats: lever, slug: mindtickle, india: true }
+  - { name: slice, ats: greenhouse, slug: slice, india: true }
+
+mnc: []      # Deloitte, Accenture, banks, consulting: Workday / SmartRecruiters fetchers (next)
+startup: []  # filled from YC's public directory and Indian startup lists (next)
