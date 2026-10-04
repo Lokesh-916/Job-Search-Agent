@@ -39,7 +39,9 @@ CATEGORIES: list[tuple[str, re.Pattern]] = [
                                        r"verification engineer|design engineer|silicon|analog", re.I)),
     ("QA / Test", re.compile(r"\bqa\b|quality assurance|test engineer|sdet|automation test", re.I)),
     ("Software engineering", re.compile(r"software|\bsde\b|developer|engineer|programmer|"
-                                        r"technical|solutions? (engineer|architect)|tech", re.I)),
+                                        r"technical|solutions? (engineer|architect)|tech|python|"
+                                        r"\bjava\b|javascript|typescript|golang|c\+\+|\.net\b|"
+                                        r"coding|programming|web|app development", re.I)),
 ]  # fmt: skip
 NON_TECH = re.compile(
     r"\b(sales|account (executive|manager)|business development|\bbdr\b|\bsdr\b|marketing|"

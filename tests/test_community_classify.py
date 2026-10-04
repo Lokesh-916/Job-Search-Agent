@@ -28,6 +28,7 @@ def test_in_india(location, expected):
         ("Data Analyst", "job", "Not specified", "Data"),
         ("Graduate Engineer Trainee - Embedded", "job", "Entry level", "Embedded / Hardware"),
         ("Full Stack Developer", "job", "Not specified", "Full stack"),
+        ("Python Internship", "internship", "Internship", "Software engineering"),
     ],
 )
 def test_kept_roles(title, kind, level, category):
