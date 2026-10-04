@@ -161,3 +161,45 @@ class CompanyResearch(BaseModel):
         description="A 3-4 line note the candidate could send a founder; specific, not generic"
     )
     sources: list[str] = Field(default_factory=list, description="URLs the facts came from")
+
+
+class Pitch(BaseModel):
+    """Outreach for one job, written in the candidate's voice."""
+
+    subject_line: str = Field(description="Email subject, under 9 words")
+    founder_message: str = Field(
+        description="LinkedIn/WaaS message to a founder, under 110 words, specific to them"
+    )
+    cover_note: str = Field(description="Short cover note for the application, 120-180 words")
+
+
+class PrepQuestion(BaseModel):
+    question: str
+    why_they_ask: str
+    answer_pointers: list[str] = Field(description="What a strong answer covers, from the profile")
+
+
+class InterviewPrep(BaseModel):
+    """Interview preparation pack for one job."""
+
+    likely_rounds: list[str] = Field(description="Expected interview rounds, in order")
+    topics_to_revise: list[str]
+    questions: list[PrepQuestion] = Field(description="8-10 likely questions")
+    projects_to_highlight: list[str] = Field(description="Candidate projects to talk about, why")
+    questions_to_ask_them: list[str] = Field(description="4-5 sharp questions for the interviewers")
+
+
+class TailoredBullet(BaseModel):
+    project: str
+    why_it_matters_here: str
+    bullet: str = Field(description="A resume bullet rewritten for this job: action, tech, impact")
+
+
+class ResumeTailoring(BaseModel):
+    """How to tailor the resume for one job."""
+
+    headline: str = Field(description="One-line resume headline aimed at this role")
+    lead_projects: list[TailoredBullet] = Field(description="3-4 projects to lead with, best first")
+    skills_to_list_first: list[str]
+    keywords_to_mirror: list[str] = Field(description="Terms from the posting to echo honestly")
+    gaps_and_how_to_address: list[str]
