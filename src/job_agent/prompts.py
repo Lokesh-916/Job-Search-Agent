@@ -12,14 +12,18 @@ keep = true when ALL of these hold:
 - It is a software / technical role: AI or LLM engineering, backend, full-stack, frontend,
   devops / platform / infra, data engineering, ML, mobile, forward-deployed or solutions
   engineering that involves real coding.
-- Someone with 0-1 years of full-time experience could realistically get it
-  (internships count as experience but do not make a role senior).
+- A new graduate can get it: "new grads ok", "0 years", "any experience", or no experience
+  requirement stated. The candidate has internships but no full-time experience.
 
 keep = false for:
 - Non-technical roles: sales, marketing, growth, recruiting, operations, support, finance, legal,
   content, design-only.
-- Clearly senior roles: Senior / Staff / Principal / Lead / Head / Director / Manager, or 3+ years
-  required. "Founding engineer" is NOT automatically senior; read the requirements.
+- Roles requiring full-time experience: "1+ years", "2+ years", ... (internships don't count).
+- Senior titles: Senior / Staff / Principal / Lead / Head / Director / Manager.
+  "Founding engineer" is NOT automatically senior; read the requirements.
+
+Judge seniority ONLY from the title and stated requirements. Company size, funding, YC batch
+or prestige say nothing about the seniority of a role.
 
 Do NOT judge location, visa or salary here. That happens later."""
 
