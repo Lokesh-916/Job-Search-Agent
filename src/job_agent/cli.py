@@ -349,6 +349,114 @@ def show(job_id: str = typer.Argument(..., help="Job ID (last column of `top`)."
     console.print(table)
 
 
+def _need_gpu() -> None:
+    from job_agent.preflight import check_ollama, check_vram
+
+    settings = get_settings()
+    for check in (check_vram(settings), check_ollama(settings)):
+        if check.fatal and not check.ok:
+            console.print(f"[yellow]Not now:[/] {check.name} — {check.detail}. Try again later.")
+            raise typer.Exit(2)
+
+
+def _as_text(model) -> str:
+    """Readable plain text for a helper result (terminal and Telegram)."""
+    lines: list[str] = []
+    for name, value in model:
+        title = name.replace("_", " ").capitalize()
+        if isinstance(value, list):
+            lines.append(f"\n{title}:")
+            for item in value:
+                if hasattr(item, "model_dump"):
+                    first, *rest = item.model_dump().items()
+                    lines.append(f"• {first[1]}")
+                    for k, v in rest:
+                        v = "; ".join(v) if isinstance(v, list) else v
+                        lines.append(f"    {k.replace('_', ' ')}: {v}")
+                else:
+                    lines.append(f"• {item}")
+        else:
+            lines.append(f"\n{title}:\n{value}")
+    return "\n".join(lines).strip()
+
+
+def _helper(kind: str, job_id: str, telegram: bool, extra: str = "") -> None:
+    _on_lab(llm=True)
+    _need_gpu()
+    import asyncio
+    import html
+
+    from job_agent.assistant import UnknownJobError, job_helper
+    from job_agent.profile import load_profile
+    from job_agent.store import Store
+
+    settings = get_settings()
+    with Store(settings.paths.data_dir / "jobs.db") as store, console.status(f"Writing {kind}..."):
+        try:
+            result = asyncio.run(
+                job_helper(kind, store, load_profile(settings.paths.profile), job_id, extra=extra)
+            )
+        except UnknownJobError as exc:
+            console.print(f"[red]{exc}[/]")
+            raise typer.Exit(1) from None
+        row = store.get(job_id)
+        title = f"{kind.capitalize()} · {row['title']} @ {row['company_name']}"
+    text = _as_text(result)
+    console.rule(title)
+    console.print(text, markup=False)
+    if telegram:
+        from job_agent.notify import Telegram
+
+        Telegram(settings.secrets).send_message(
+            f"<b>{html.escape(title)}</b>\n\n{html.escape(text)}"[:4000]
+        )
+
+
+TELEGRAM_OPT = typer.Option(False, "--telegram", help="Also send the result to Telegram.")
+
+
+@app.command()
+def pitch(
+    job_id: str,
+    note: str = typer.Option("", help="Extra instruction, e.g. 'mention my Jev work'."),
+    telegram: bool = TELEGRAM_OPT,
+) -> None:
+    """[LLM] Founder message, cover note and subject line for one job."""
+    _helper("pitch", job_id, telegram, note)
+
+
+@app.command()
+def prep(job_id: str, telegram: bool = TELEGRAM_OPT) -> None:
+    """[LLM] Interview prep: likely rounds, topics, questions with answer pointers."""
+    _helper("prep", job_id, telegram)
+
+
+@app.command()
+def tailor(job_id: str, telegram: bool = TELEGRAM_OPT) -> None:
+    """[LLM] Which projects to lead the resume with, rewritten bullets, keywords, gaps."""
+    _helper("tailor", job_id, telegram)
+
+
+@app.command()
+def ask(question: str = typer.Argument(..., help='e.g. "remote AI jobs above 20 LPA?"')) -> None:
+    """[LLM] Ask anything about your jobs; an agent searches the database to answer."""
+    _on_lab(llm=True)
+    _need_gpu()
+    import asyncio
+
+    from job_agent.assistant import ask as ask_agent
+    from job_agent.fx import load_inr_rates
+    from job_agent.report import build_report, research_columns
+    from job_agent.store import Store
+
+    settings = get_settings()
+    with Store(settings.paths.data_dir / "jobs.db") as store, console.status("Thinking..."):
+        rates = load_inr_rates(settings.paths.data_dir / "fx.json")
+        records = build_report(store, settings, rates, research_columns(store)).jobs
+        answer = asyncio.run(ask_agent(question, records, store))
+    console.print(answer, markup=False)
+
+
 @app.command("notify-test")
 def notify_test() -> None:
     """Send a test message to the configured Telegram chat."""
