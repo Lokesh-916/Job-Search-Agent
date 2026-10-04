@@ -1,4 +1,4 @@
-"""Daily workbook writer (see docs/WORKBOOK.md) and the status read-back from the last one."""
+"""Daily workbook writer (see docs/WORKBOOK.md)."""
 
 from __future__ import annotations
 
@@ -8,12 +8,10 @@ from pathlib import Path
 from typing import Any
 
 import xlsxwriter
-from openpyxl import load_workbook
 
 from job_agent.report import Report
 
 STATUSES = ["To Apply", "Applied", "Interviewing", "Offer", "Rejected", "Skip"]
-USER_COLUMNS = ("Status", "My Notes", "Applied On")
 URL_COLUMNS = {"Apply URL", "Job URL", "Website"}
 
 
@@ -26,7 +24,7 @@ class Band:
 
 
 JOB_BANDS = (
-    Band("Tracking", "#1F4E79", ("Score", "Tier", "New", "Status", "My Notes", "Applied On")),
+    Band("Tracking", "#1F4E79", ("Score", "Tier", "New", "Status")),
     Band("Role", "#2E75B6", ("Title", "Company", "Category", "Builds AI?", "Apply URL",
                              "Job URL", "Posted", "Age (days)", "Openings at company")),
     Band("Location", "#548235", ("Work mode", "Locations", "India eligible",
@@ -47,7 +45,7 @@ REJECTED_COLUMNS = ("Reject reason", "Title", "Company", "Category", "Work mode"
                     "Listed salary", "Experience", "Apply URL", "Job ID")  # fmt: skip
 
 WIDTHS = {
-    "Score": 7, "Tier": 5, "New": 5, "Status": 13, "My Notes": 24, "Title": 34, "Company": 18,
+    "Score": 7, "Tier": 5, "New": 5, "Status": 13, "Title": 34, "Company": 18,
     "Builds AI?": 30, "Apply URL": 9, "Job URL": 9, "Locations": 22, "Eligibility evidence": 30,
     "Pay basis": 30, "Why I fit": 45, "Pitch": 40, "Learning upside": 30, "DSA evidence": 30,
     "Interview process": 40, "Must-have skills": 30, "Tech stack": 26, "What they do": 45,
@@ -71,40 +69,6 @@ TABS = (  # (sheet name, filter)
 
 def workbook_path(output_dir: Path, run_date: str) -> Path:
     return output_dir / f"jobs_{run_date}.xlsx"
-
-
-def read_user_status(output_dir: Path) -> dict[str, dict[str, str | None]]:
-    """Status / notes the user typed into the most recent workbook, keyed by Job ID."""
-    books = sorted(output_dir.glob("jobs_*.xlsx"))
-    if not books:
-        return {}
-    wb = load_workbook(books[-1], read_only=True, data_only=True)
-    found: dict[str, dict[str, str | None]] = {}
-    for ws in wb.worksheets:
-        rows = ws.iter_rows(min_row=2, values_only=True)  # row 1 = band titles
-        header = next(rows, None)
-        if not header or "Job ID" not in header or "Status" not in header:
-            continue
-        idx = {name: header.index(name) for name in ("Job ID", *USER_COLUMNS) if name in header}
-        for values in rows:
-            job_id = values[idx["Job ID"]]
-            if job_id is None:
-                continue
-            entry = {
-                col.lower().replace(" ", "_").replace("my_", ""): _cell(values[i])
-                for col, i in idx.items()
-                if col != "Job ID"
-            }
-            if any(entry.values()):
-                found[str(job_id)] = entry
-    wb.close()
-    return found
-
-
-def _cell(v: Any) -> str | None:
-    if v is None or v == "":
-        return None
-    return v.isoformat()[:10] if hasattr(v, "isoformat") else str(v)
 
 
 class _Writer:
@@ -217,10 +181,12 @@ def write_workbook(
             ("🏭 Companies", len(report.companies)),
             ("🗑️ Rejected", len(rejected)),
             ("🆕 New today", sum(1 for j in live if j["New"])),
+            ("⏳ Not processed yet", report.pending),
         ],
     )
-    top10 = sorted(live, key=lambda j: -(j["Score"] or 0))[:10]
-    start = len(run_info) + len(tabs) + 7
+    scored = [j for j in live if j["Score"] is not None]
+    top10 = sorted(scored, key=lambda j: -j["Score"])[:10]
+    start = len(run_info) + len(tabs) + 8
     dash.write(start, 0, "Top 10", w.title)
     for i, j in enumerate(top10, start=start + 1):
         dash.write(i, 0, j["Score"])

@@ -1,6 +1,6 @@
 from openpyxl import load_workbook
 
-from job_agent.export import read_user_status, workbook_path, write_workbook
+from job_agent.export import workbook_path, write_workbook
 from job_agent.report import Report
 
 
@@ -22,24 +22,14 @@ def test_tabs_and_routing(tmp_path):
     wb = load_workbook(path)
     assert path.name == "jobs_2026-10-03.xlsx"
     ids = lambda sheet: [r[-1] for r in wb[sheet].iter_rows(min_row=3, values_only=True)]  # noqa: E731
-    assert wb["🔥 Top Picks"].cell(3, 7).value == "Job 1"
+    assert wb["🔥 Top Picks"].cell(3, 5).value == "Job 1"
     assert ids("🗑️ Rejected") == ["3"]
-    assert wb["🏢 India · Onsite"].cell(3, 7).value == "Job 2"
+    assert wb["🏢 India · Onsite"].cell(3, 5).value == "Job 2"
 
 
-def test_user_edits_are_read_back_from_latest_workbook(tmp_path):
-    old = write_workbook(REPORT, workbook_path(tmp_path, "2026-10-02"), threshold=75)
-    wb = load_workbook(old)
-    ws = wb["🌍 Remote · Foreign"]
-    header = [c.value for c in ws[2]]
-    ws.cell(3, header.index("Status") + 1, "Applied")
-    ws.cell(3, header.index("My Notes") + 1, "emailed founder")
-    wb.save(old)
-
-    assert read_user_status(tmp_path) == {
-        "1": {"status": "Applied", "notes": "emailed founder", "applied_on": None}
-    }
-
-
-def test_no_previous_workbook(tmp_path):
-    assert read_user_status(tmp_path) == {}
+def test_dashboard_top10_only_scored_and_pending_count(tmp_path):
+    report = Report(jobs=[job("1", "needs_review", None), job("2", "remote_india", 70)], pending=5)
+    wb = load_workbook(write_workbook(report, tmp_path / "x.xlsx", threshold=75))
+    cells = [c for row in wb["📊 Dashboard"].iter_rows(values_only=True) for c in row if c]
+    assert "⏳ Not processed yet" in cells and 5 in cells
+    assert any("Job 2" in str(c) for c in cells) and not any("Job 1" in str(c) for c in cells)

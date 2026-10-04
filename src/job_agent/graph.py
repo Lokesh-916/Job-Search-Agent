@@ -16,7 +16,7 @@ from typing import Annotated, Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
-from job_agent.export import read_user_status, workbook_path, write_workbook
+from job_agent.export import workbook_path, write_workbook
 from job_agent.fx import load_inr_rates
 from job_agent.notify import NotifyError, Telegram
 from job_agent.preflight import check_ollama, check_session, check_vram
@@ -87,7 +87,6 @@ def build_graph(settings: Settings, store: Store):
 
     def export(state: PipelineState) -> dict:
         out_dir = settings.paths.output_dir
-        store.save_user_status(read_user_status(out_dir))
         rates = load_inr_rates(rates_path)
         report = build_report(
             store, settings, rates, research_columns(store), run_date=state["run_date"]

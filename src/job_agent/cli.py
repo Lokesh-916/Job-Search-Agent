@@ -69,7 +69,7 @@ def report() -> None:
     """Write today's workbook from what's already in the database (no LLM calls)."""
     from datetime import date
 
-    from job_agent.export import read_user_status, workbook_path, write_workbook
+    from job_agent.export import workbook_path, write_workbook
     from job_agent.fx import load_inr_rates
     from job_agent.report import build_report
     from job_agent.store import Store
@@ -77,7 +77,6 @@ def report() -> None:
     settings = get_settings()
     out_dir, today = settings.paths.output_dir, date.today().isoformat()
     with Store(settings.paths.data_dir / "jobs.db") as store:
-        store.save_user_status(read_user_status(out_dir))
         rates = load_inr_rates(settings.paths.data_dir / "fx.json")
         rep = build_report(store, settings, rates, run_date=today)
     info = [("Run date", today), ("Model", settings.llm.model), ("Jobs", len(rep.jobs)),
