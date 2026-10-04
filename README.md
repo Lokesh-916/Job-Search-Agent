@@ -96,6 +96,24 @@ Numbers from real runs on an RTX 2000 Ada (16 GB) with `qwen3:14b`. `job-agent s
 
 Each run records per-stage time, per-call latency, tokens/sec, repair and failure counts, research tool calls and GPU memory peak, so models and prompts can be compared run by run.
 
+## 👥 Placement Feed for the batch
+
+A second bot gives my classmates one message every morning with **tech jobs, paid internships, hackathons and tech events in India**, plus a sheet with everything. There's no profile matching: everyone gets the same curated list.
+
+| | Where it comes from |
+|---|---|
+| 🏛️ Big Tech and MNCs | Amazon, NVIDIA, Adobe, Intel, Cisco, Micron, Mastercard, Visa, Deutsche Bank, Bosch… (Workday, SmartRecruiters, amazon.jobs) |
+| 🦄 Unicorns and startups | Swiggy, CRED, Meesho, Groww, Paytm, Stripe, Databricks, OpenAI, Sarvam AI, FamPay… (Greenhouse, Lever, Ashby) |
+| 🌐 Everyone else | Adzuna India search, Unstop fresher jobs |
+| 🎓 Internships | The companies above, plus Unstop internships with a stated stipend |
+| 🏆 Hackathons and events | Devfolio, Unstop, Devpost (online or in India), Google Developer Groups at Indian campuses |
+
+Curation is rule-based: Indian locations only, technical roles only, senior and "2+ years" roles dropped, test postings skipped. The 70 companies are in [`config/companies.yaml`](config/companies.yaml), and adding one is a single line.
+
+**Members:** `/join <roll no>` → the coordinator approves → `/today` · `/jobs` · `/internships` · `/events` · `/suggest` · `/forget`
+**Coordinator:** `/users` · `/pending` · `/broadcast` · `/suggestions` · `/refresh` · `/sendnow`
+**CLI:** `job-agent community refresh | send --me | daily | users | bot`
+
 ## ⚡ Set up your own
 
 ```bash
