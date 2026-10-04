@@ -55,6 +55,8 @@ def test_kept_roles(title, kind, level, category):
         ("Software Engineer - Python - 4 to 8 yrs", "Bangalore", "", "Needs 4+ years"),
         ("Software Development Engineer 4", "Noida", "", "Senior role"),
         ("Staff Engineer I", "Bengaluru", "", "Senior role"),
+        ("Intermediate Backend Engineer, India", "Bangalore", "", "Senior role"),
+        ("Apprentice Role for Non-Technology hiring", "Pune", "", "Not a tech role"),
         ("Software Development II, Core Services", "Bengaluru", "", "Senior role"),
         ("Associate II, ML Data Operations", "Chennai", "", "Senior role"),
         ("IN_Bosch Rexroth India_Engineer / Executive_Sales_Industrial", "New Delhi", "", "Not a tech role"),

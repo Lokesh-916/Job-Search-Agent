@@ -49,12 +49,14 @@ NON_TECH = re.compile(
     r"legal|counsel|compliance|customer success|customer support|support associate|"
     r"operations (manager|associate|executive)|office manager|executive assistant|"
     r"content writer|copywriter|graphic designer|video editor|social media|procurement|"
-    r"logistics|warehouse|driver|nurse|doctor|pharmac|teacher|tutor|counsell?or)\b",
+    r"logistics|warehouse|driver|nurse|doctor|pharmac|teacher|tutor|counsell?or|"
+    r"non[- ]?tech(nology|nical)?|trainer)\b",
     re.I,
 )
 SENIOR = re.compile(
     r"\b(senior|sr\.?|staff|principal|lead|leader|manager|director|head|vp|vice president|architect|"
-    r"chief|distinguished|fellow|expert|specialist)\b|\b(II|III|IV|V|[2-5])\s*$|"
+    r"chief|distinguished|fellow|expert|specialist|intermediate|mid[- ]level)\b|"
+    r"\b(II|III|IV|V|[2-5])\s*$|"
     r"(engineer|developer|development|sde|scientist|analyst|associate)[- ]*(II|III|IV|[2-5])\b",
     re.I,
 )
