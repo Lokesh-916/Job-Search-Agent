@@ -94,14 +94,14 @@ def write_workbook(path: Path, jobs: list, interns: list, events: list, today: s
     return path
 
 
-def _line(r, pay_label: str = "") -> str:
+def job_line(r, pay_label: str = "") -> str:
     esc = html.escape
     pay = f" · {esc(r['pay'])}" if r["pay"] and pay_label else ""
     link = f'<a href="{esc(r["url"])}">{esc(r["title"][:70])}</a>'
     return f"• <b>{esc(r['company'])}</b> · {link} · {esc(r['location'][:40])}{pay}"
 
 
-def _event_line(e) -> str:
+def event_line(e) -> str:
     when = e["starts"] or ""
     by = f" · register by {e['deadline']}" if e["deadline"] else ""
     esc = html.escape
@@ -119,13 +119,13 @@ def digest_text(jobs: list, interns: list, events: list, today: str, top: int = 
         f"{len(jobs)} jobs · {len(interns)} paid internships · {len(events)} events, all in India",
         "",
         "💼 <b>Jobs</b>",
-        *[_line(r) for r in new_jobs[:top]],
+        *[job_line(r) for r in new_jobs[:top]],
         "",
         "🎓 <b>Internships</b>",
-        *[_line(r, "pay") for r in new_interns[:5]],
+        *[job_line(r, "pay") for r in new_interns[:5]],
         "",
         "🏆 <b>Hackathons & events</b>",
-        *[_event_line(e) for e in soon],
+        *[event_line(e) for e in soon],
         "",
         "📎 Full list with filters in the attached sheet. /suggest to send feedback.",
     ]
