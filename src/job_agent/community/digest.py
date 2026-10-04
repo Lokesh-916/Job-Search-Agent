@@ -14,14 +14,14 @@ from job_agent.community.models import TIER_LABEL
 
 TIER = {**TIER_LABEL, "other": "📌 Other"}
 JOB_COLUMNS = [  # (header, row key / callable, width)
-    ("New", lambda r, d: "🆕" if r["first_seen"][:10] == d else "", 5),
+    ("New", lambda r, since: "🆕" if r["first_seen"] >= since else "", 5),
     ("Company", "company", 20), ("Tier", lambda r, d: TIER.get(r["tier"] or "other", ""), 12),
     ("Role", "title", 42), ("Category", "category", 18), ("Level", "level", 14),
     ("Location", "location", 26), ("Pay (if stated)", "pay", 16), ("Posted", "posted_at", 11),
     ("Apply", "url", 9), ("Source", "source", 13),
 ]  # fmt: skip
 INTERN_COLUMNS = [
-    ("New", lambda r, d: "🆕" if r["first_seen"][:10] == d else "", 5),
+    ("New", lambda r, since: "🆕" if r["first_seen"] >= since else "", 5),
     ("Company", "company", 22), ("Tier", lambda r, d: TIER.get(r["tier"] or "other", ""), 12),
     ("Internship", "title", 40), ("Category", "category", 18), ("Location", "location", 24),
     ("Stipend / month", "pay", 20), ("Apply by", "deadline", 11), ("Posted", "posted_at", 11),
@@ -40,7 +40,9 @@ def _value(row, spec, today: str):
 
 
 def write_workbook(path: Path, jobs: list, interns: list, events: list, today: str,
-                   check: list = ()) -> Path:  # fmt: skip
+                   check: list = (), new_since: str | None = None) -> Path:  # fmt: skip
+    """`new_since`: postings first seen at/after this timestamp are marked new."""
+    new_since = new_since or today
     path.parent.mkdir(parents=True, exist_ok=True)
     wb = xlsxwriter.Workbook(str(path), {"strings_to_urls": False})
     head = wb.add_format({"bold": True, "font_color": "white", "bg_color": "#2b37a8",
@@ -57,9 +59,9 @@ def write_workbook(path: Path, jobs: list, interns: list, events: list, today: s
     dash.write(0, 0, f"Placement feed · {today}", title)
     rows = [
         ("💼 Jobs (India, entry level)", len(jobs)),
-        ("   new today", sum(r["first_seen"][:10] == today for r in jobs)),
+        ("   new today", sum(r["first_seen"] >= new_since for r in jobs)),
         ("🎓 Paid internships", len(interns)),
-        ("   new today", sum(r["first_seen"][:10] == today for r in interns)),
+        ("   new today", sum(r["first_seen"] >= new_since for r in interns)),
         ("🏆 Open hackathons", len(hackathons)),
         ("🎤 Upcoming tech events", len(meetups)),
         ("🔍 Other openings (check experience)", len(check)),
@@ -76,7 +78,7 @@ def write_workbook(path: Path, jobs: list, interns: list, events: list, today: s
 
     def sheet(name: str, columns, items) -> None:
         ws = wb.add_worksheet(name)
-        data = [[_value(r, spec, today) for _, spec, _ in columns] for r in items]
+        data = [[_value(r, spec, new_since) for _, spec, _ in columns] for r in items]
         ws.add_table(0, 0, max(len(data), 1), len(columns) - 1, {
             "data": data or [[None] * len(columns)], "style": "Table Style Light 9",
             "columns": [{"header": h, "header_format": head} for h, _, _ in columns],
@@ -124,10 +126,22 @@ def distinct(rows: list) -> list:
     return out
 
 
-def digest_text(jobs: list, interns: list, events: list, today: str, top: int = 8) -> str:
+def per_company(rows: list, cap: int) -> list:
+    counts: dict[str, int] = {}
+    out = []
+    for r in rows:
+        counts[r["company"]] = counts.get(r["company"], 0) + 1
+        if counts[r["company"]] <= cap:
+            out.append(r)
+    return out
+
+
+def digest_text(jobs: list, interns: list, events: list, today: str, top: int = 8,
+                new_since: str | None = None) -> str:  # fmt: skip
+    new_since = new_since or today
     jobs, interns = distinct(ranked(jobs)), distinct(ranked(interns))
-    new_jobs = [r for r in jobs if r["first_seen"][:10] == today] or jobs
-    new_interns = [r for r in interns if r["first_seen"][:10] == today] or interns
+    new_jobs = per_company([r for r in jobs if r["first_seen"] >= new_since] or jobs, 2)
+    new_interns = per_company([r for r in interns if r["first_seen"] >= new_since] or interns, 2)
     soon = sorted(events, key=lambda e: e["deadline"] or e["starts"] or "9999")[:5]
     d = date.fromisoformat(today)
     lines = [

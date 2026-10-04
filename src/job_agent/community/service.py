@@ -46,14 +46,15 @@ def refresh_and_build(settings: Settings, store: CommunityStore) -> tuple[FeedSt
     jobs, interns, events = current(store)
     today = date.today().isoformat()
     out = settings.paths.data_dir / "community" / f"placement_feed_{today}.xlsx"
-    write_workbook(out, jobs, interns, events, today, needs_checking(store))
+    write_workbook(out, jobs, interns, events, today, needs_checking(store), stats.run_at)
     store.set_meta("last_workbook", str(out))
     return stats, out
 
 
 def todays_digest(store: CommunityStore) -> str:
     jobs, interns, events = current(store)
-    return digest_text(jobs, interns, events, date.today().isoformat())
+    since = store.get_meta("last_refresh")
+    return digest_text(jobs, interns, events, date.today().isoformat(), new_since=since)
 
 
 def deliver(settings: Settings, store: CommunityStore, chat_ids: list[int] | None = None):

@@ -54,3 +54,18 @@ def test_meta(tmp_path):
         assert s.get_meta("last_refresh") is None
         s.set_meta("last_refresh", "2026-10-05T02:00:00+00:00")
         assert s.get_meta("last_refresh").startswith("2026-10-05")
+
+
+def test_events_already_started_without_deadline_are_hidden(tmp_path):
+    past = Event("gdg", "9", "Meetup / workshop", "Old jam", "GDG", "Online", "Pune",
+                 "2025-12-29", None, None, "", "u")  # fmt: skip
+    with CommunityStore(tmp_path / "c.db") as s:
+        s.upsert_event(past, "2026-10-05T00:00:00+00:00")
+        assert s.live_events("2026-10-05T00:00:00+00:00", "2026-10-05") == []
+
+
+def test_digest_caps_each_company():
+    from job_agent.community.digest import per_company
+
+    rows = [{"company": c} for c in ["Amazon"] * 5 + ["CRED"]]
+    assert [r["company"] for r in per_company(rows, 2)] == ["Amazon", "Amazon", "CRED"]
