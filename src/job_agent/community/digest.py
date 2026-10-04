@@ -39,7 +39,8 @@ def _value(row, spec, today: str):
     return spec(row, today) if callable(spec) else row[spec]
 
 
-def write_workbook(path: Path, jobs: list, interns: list, events: list, today: str) -> Path:
+def write_workbook(path: Path, jobs: list, interns: list, events: list, today: str,
+                   check: list = ()) -> Path:  # fmt: skip
     path.parent.mkdir(parents=True, exist_ok=True)
     wb = xlsxwriter.Workbook(str(path), {"strings_to_urls": False})
     head = wb.add_format({"bold": True, "font_color": "white", "bg_color": "#2b37a8",
@@ -61,11 +62,13 @@ def write_workbook(path: Path, jobs: list, interns: list, events: list, today: s
         ("   new today", sum(r["first_seen"][:10] == today for r in interns)),
         ("🏆 Open hackathons", len(hackathons)),
         ("🎤 Upcoming tech events", len(meetups)),
+        ("🔍 Other openings (check experience)", len(check)),
         ("", ""),
         ("Jobs by category", ""),
         *Counter(r["category"] for r in jobs).most_common(),
         ("", ""),
         ("Level 'Not specified' = the posting doesn't say; check before applying.", ""),
+        ("'Check experience' tab: big-company roles whose listing shows no requirements.", ""),
     ]
     for i, (k, v) in enumerate(rows, start=2):
         dash.write(i, 0, k, bold if k and not k.startswith("   ") else None)
@@ -90,6 +93,7 @@ def write_workbook(path: Path, jobs: list, interns: list, events: list, today: s
     sheet("🎓 Internships", INTERN_COLUMNS, interns)
     sheet("🏆 Hackathons", EVENT_COLUMNS, hackathons)
     sheet("🎤 Tech events", EVENT_COLUMNS, meetups)
+    sheet("🔍 Check experience", JOB_COLUMNS, check)
     wb.close()
     return path
 

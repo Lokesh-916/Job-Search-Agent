@@ -13,6 +13,7 @@ from job_agent.community.telegram import Sender
 from job_agent.settings import Settings
 
 ROSTER = Path("data/roster.csv")  # roll_no,name (private; never committed)
+CHECK = "Check experience"
 
 
 def db_path(settings: Settings) -> Path:
@@ -23,9 +24,15 @@ def current(store: CommunityStore) -> tuple[list, list, list]:
     """Jobs, internships and upcoming events from the latest refresh."""
     since = store.get_meta("last_refresh") or "9999"
     rows = ranked(store.live_postings(since))
-    jobs = [r for r in rows if r["kind"] == "job"]
+    jobs = [r for r in rows if r["kind"] == "job" and r["level"] != CHECK]
     interns = [r for r in rows if r["kind"] == "internship"]
     return jobs, interns, store.live_events(since, date.today().isoformat())
+
+
+def needs_checking(store: CommunityStore) -> list:
+    """Roles from sources without job descriptions whose experience bar we can't read."""
+    since = store.get_meta("last_refresh") or "9999"
+    return [r for r in ranked(store.live_postings(since)) if r["level"] == CHECK]
 
 
 def latest_workbook(store: CommunityStore) -> Path | None:
@@ -39,7 +46,7 @@ def refresh_and_build(settings: Settings, store: CommunityStore) -> tuple[FeedSt
     jobs, interns, events = current(store)
     today = date.today().isoformat()
     out = settings.paths.data_dir / "community" / f"placement_feed_{today}.xlsx"
-    write_workbook(out, jobs, interns, events, today)
+    write_workbook(out, jobs, interns, events, today, needs_checking(store))
     store.set_meta("last_workbook", str(out))
     return stats, out
 

@@ -54,7 +54,7 @@ def test_refresh_curates_and_counts(tmp_path, monkeypatch):
         path = write_workbook(tmp_path / "feed.xlsx", jobs, interns, events, today)
         wb = load_workbook(path)
         assert wb.sheetnames == ["📊 Today", "💼 Jobs", "🎓 Internships", "🏆 Hackathons",
-                                 "🎤 Tech events"]  # fmt: skip
+                                 "🎤 Tech events", "🔍 Check experience"]  # fmt: skip
         assert wb["🎓 Internships"].cell(2, 7).value in (
             "Paid (amount not listed)",
             "₹15,000–20,000",
