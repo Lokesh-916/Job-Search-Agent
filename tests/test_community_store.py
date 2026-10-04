@@ -80,3 +80,25 @@ def test_upcoming_keeps_open_registration_and_future_starts():
         {"name": "future", "deadline": None, "starts": "2026-10-09"},
     ]
     assert [e["name"] for e in upcoming(ev, "2026-10-05")] == ["open", "future"]
+
+
+def test_batch_roll_rule():
+    from job_agent.settings import CommunityConfig
+
+    c = CommunityConfig()
+    assert (
+        c.roll_allowed("123AD0001") and c.roll_allowed("123ad0061") and c.roll_allowed("123AD0021")
+    )
+    for bad in (
+        "123AD0000",
+        "123AD0062",
+        "123AD0022",
+        "123AD0027",
+        "123AD0029",
+        "123AD0044",
+        "123AD001",
+        "124AD0005",
+        "123AD00X1",
+        "",
+    ):
+        assert not c.roll_allowed(bad), bad

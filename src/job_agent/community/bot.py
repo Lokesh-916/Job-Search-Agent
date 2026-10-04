@@ -103,11 +103,12 @@ def build_app(settings: Settings) -> Application:
             return
         roll = (context.args or [""])[0].strip().upper()
         if not ROLL.match(roll):
-            await reply(update, "Send it like this: <code>/join CS23B1001</code>")
+            await reply(update, "Send it like this: <code>/join 123AD0001</code>")
             return
         roster = load_roster()
-        if roster and roll not in roster:
-            await reply(update, "That roll number isn't on the batch list. Check it, or message "
+        allowed = roll in roster if roster else settings.community.roll_allowed(roll)
+        if not allowed:
+            await reply(update, "That roll number isn't part of this batch. Check it, or message "
                                 "the placement coordinator.")  # fmt: skip
             return
         name = roster.get(roll) or user.full_name
@@ -118,7 +119,7 @@ def build_app(settings: Settings) -> Application:
             InlineKeyboardButton("❌ Reject", callback_data=f"reject:{user.id}"),
         ]])  # fmt: skip
         handle = f" (@{user.username})" if user.username else ""
-        roster_note = "on the batch list" if roster else "no roster loaded"
+        roster_note = "on the roster" if roster else "valid batch roll number"
         await context.bot.send_message(
             owner_id, f"🙋 Join request: <b>{html.escape(name)}</b>{html.escape(handle)}\n"
                       f"Roll: <code>{roll}</code> · {roster_note}",
