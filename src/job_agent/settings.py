@@ -88,6 +88,25 @@ class LabConfig(BaseModel):
         return self.host == "local"
 
 
+class CommunityConfig(BaseModel):
+    """Who may join the batch feed: roll numbers PREFIX + zero-padded number in a range."""
+
+    roll_prefix: str = "123AD"
+    roll_digits: int = 4
+    roll_min: int = 1
+    roll_max: int = 61
+    roll_exclude: list[int] = Field(default_factory=lambda: [22, 27, 29, 44])
+
+    def roll_allowed(self, roll: str) -> bool:
+        roll = roll.strip().upper()
+        prefix = self.roll_prefix.upper()
+        number = roll[len(prefix) :]
+        if not roll.startswith(prefix) or len(number) != self.roll_digits or not number.isdigit():
+            return False
+        n = int(number)
+        return self.roll_min <= n <= self.roll_max and n not in self.roll_exclude
+
+
 class Paths(BaseModel):
     data_dir: Path = Path("data")
     output_dir: Path = Path("workbooks")
@@ -115,6 +134,7 @@ class Settings(BaseModel):
     browser: BrowserConfig = Field(default_factory=BrowserConfig)
     vram: VramConfig = Field(default_factory=VramConfig)
     lab: LabConfig = Field(default_factory=LabConfig)
+    community: CommunityConfig = Field(default_factory=CommunityConfig)
     paths: Paths = Field(default_factory=Paths)
     secrets: Secrets = Field(default_factory=Secrets)
 

@@ -76,6 +76,14 @@ lab:
   repo: ~/projects/Job-Search-Agent
   ssh: ssh
 
+community:
+  # Batch feed membership: 123AD0001 ... 123AD0061, minus a few numbers.
+  roll_prefix: 123AD
+  roll_digits: 4
+  roll_min: 1
+  roll_max: 61
+  roll_exclude: [22, 27, 29, 44]
+
 paths:
   data_dir: data
   output_dir: workbooks        # daily jobs_YYYY-MM-DD.xlsx files
