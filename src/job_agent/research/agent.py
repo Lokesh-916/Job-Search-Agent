@@ -16,6 +16,7 @@ from langchain.agents.middleware import ModelCallLimitMiddleware, ToolCallLimitM
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from job_agent import metrics
 from job_agent.prompts import RESEARCH_SYNTH_SYSTEM, RESEARCH_SYSTEM
 from job_agent.research.tools import format_results, make_tools, search_hn, search_web
 from job_agent.schemas import CompanyResearch
@@ -84,7 +85,9 @@ async def run_tool_agent(
             ModelCallLimitMiddleware(run_limit=cfg.max_tool_calls + 3, exit_behavior="end"),
         ],
     )
-    result = await agent.ainvoke({"messages": [HumanMessage(evidence)]})
+    result = await agent.ainvoke(
+        {"messages": [HumanMessage(evidence)]}, config=metrics.llm_config("research")
+    )
     return result.get("structured_response")
 
 
@@ -99,8 +102,11 @@ async def research_company(
         try:
             found = await run_agent(llm, evidence, cfg)
             if found is not None:
+                metrics.event("research:agent_ok")
                 return found
+            metrics.event("research:agent_no_answer")
         except Exception:  # small models fumble tool calls; the evidence is still good
-            pass
+            metrics.event("research:agent_error")
+    metrics.event("research:summary_fallback" if cfg.agentic else "research:summary")
     messages = [SystemMessage(RESEARCH_SYNTH_SYSTEM), HumanMessage(evidence)]
-    return await ainvoke_structured(llm, CompanyResearch, messages)
+    return await ainvoke_structured(llm, CompanyResearch, messages, stage="research")
