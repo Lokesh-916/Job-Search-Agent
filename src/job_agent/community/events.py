@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import re
 from dataclasses import dataclass
 
@@ -26,6 +27,10 @@ class Event:
     deadline: str | None  # registration closes
     prize: str
     url: str
+
+    def __post_init__(self) -> None:
+        self.name = html.unescape(self.name or "")
+        self.organizer = html.unescape(self.organizer or "")
 
     @property
     def key(self) -> str:

@@ -56,6 +56,7 @@ def test_kept_roles(title, kind, level, category):
         ("Software Development Engineer 4", "Noida", "", "Senior role"),
         ("Staff Engineer I", "Bengaluru", "", "Senior role"),
         ("Intermediate Backend Engineer, India", "Bangalore", "", "Senior role"),
+        ("sgupta13_test_job", "Bangalore", "", "Test or placeholder posting"),
         ("Apprentice Role for Non-Technology hiring", "Pune", "", "Not a tech role"),
         ("Software Development II, Core Services", "Bengaluru", "", "Senior role"),
         ("Associate II, ML Data Operations", "Chennai", "", "Senior role"),
@@ -86,3 +87,7 @@ def test_description_less_sources_are_flagged_not_promoted():
         "workday", "Micron", "2", "Graduate Engineering Technician", "u", location="Hyderabad"
     )
     assert classify(p2).level == "Entry level"
+
+
+def test_titles_are_unescaped():
+    assert post("AI &amp; ML Engineer").title == "AI & ML Engineer"

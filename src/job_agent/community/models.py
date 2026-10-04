@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -36,6 +37,11 @@ class Posting:
     posted_at: str | None = None  # ISO date when known
     description: str = ""  # plain text
     extra: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        # Some sources send HTML-escaped text ("AI &amp; Food"); store it plain.
+        self.title = html.unescape(self.title)
+        self.company = html.unescape(self.company)
 
     @property
     def key(self) -> str:

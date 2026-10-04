@@ -124,7 +124,12 @@ def stipend_of(text: str) -> str | None:
     return None
 
 
+JUNK = re.compile(r"test[ _]?job|_test\b|bug bash|do not apply|dummy|sample posting", re.I)
+
+
 def classify(p: Posting) -> Verdict:
+    if JUNK.search(p.title):
+        return Verdict(False, "Test or placeholder posting")
     title = p.title.replace("_", " ")  # "IN_Bosch_Engineer_Sales" style titles
     if not in_india(p.location):
         return Verdict(False, "Not in India")
