@@ -55,14 +55,15 @@ NON_TECH = re.compile(
 SENIOR = re.compile(
     r"\b(senior|sr\.?|staff|principal|lead|leader|manager|director|head|vp|vice president|architect|"
     r"chief|distinguished|fellow|expert|specialist)\b|\b(II|III|IV|V|[2-5])\s*$|"
-    r"(engineer|developer|sde|scientist|analyst)[- ]?(II|III|IV|[2-5])\b",
+    r"(engineer|developer|development|sde|scientist|analyst|associate)[- ]*(II|III|IV|[2-5])\b",
     re.I,
 )
 TITLE_YEARS = re.compile(r"(\d{1,2})\s*\+?\s*(?:-|to)?\s*\d{0,2}\s*\+?\s*y(?:rs?|ears?)?\b", re.I)
 NO_DESCRIPTION_SOURCES = {"workday", "smartrecruiters"}  # listing APIs without job text
 ENTRY = re.compile(
     r"new grad|graduate|fresher|campus|entry[- ]level|early career|junior|jr\.?\b|trainee|"
-    r"associate (software|engineer|developer|data)|\bsde[- ]?(i|1)\b|engineer (i|1)\b|"
+    r"associate (software|engineer|developer|data)|\bsde[- ]*(i|1)\b|"
+    r"(engineer|scientist|developer)[- ]*(i|1)\b|"
     r"university|0\s*[-–to]+\s*[12]\s*(years|yrs)|20(26|27) (batch|grad)|batch of 20(26|27)",
     re.I,
 )

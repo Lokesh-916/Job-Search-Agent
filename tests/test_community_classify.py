@@ -29,6 +29,13 @@ def test_in_india(location, expected):
         ("Graduate Engineer Trainee - Embedded", "job", "Entry level", "Embedded / Hardware"),
         ("Full Stack Developer", "job", "Not specified", "Full stack"),
         ("Python Internship", "internship", "Internship", "Software engineering"),
+        (
+            "Software Development Engineer -I, Merchant Tech",
+            "job",
+            "Entry level",
+            "Software engineering",
+        ),
+        ("Applied Scientist I, Ads", "job", "Entry level", "ML / AI"),
     ],
 )
 def test_kept_roles(title, kind, level, category):
@@ -48,6 +55,8 @@ def test_kept_roles(title, kind, level, category):
         ("Software Engineer - Python - 4 to 8 yrs", "Bangalore", "", "Needs 4+ years"),
         ("Software Development Engineer 4", "Noida", "", "Senior role"),
         ("Staff Engineer I", "Bengaluru", "", "Senior role"),
+        ("Software Development II, Core Services", "Bengaluru", "", "Senior role"),
+        ("Associate II, ML Data Operations", "Chennai", "", "Senior role"),
         ("IN_Bosch Rexroth India_Engineer / Executive_Sales_Industrial", "New Delhi", "", "Not a tech role"),
     ],
 )  # fmt: skip
