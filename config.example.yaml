@@ -16,6 +16,10 @@ llm:
     extract:  { reasoning: false }
     assess:   { reasoning: true }
     research: { reasoning: true }   # same num_ctx everywhere: a change forces a model reload
+    ask:      { reasoning: true }   # on-demand helpers (job-agent ask / pitch / prep / tailor)
+    pitch:    { reasoning: false }
+    prep:     { reasoning: true }
+    tailor:   { reasoning: true }
 
 sources:
   waas:
