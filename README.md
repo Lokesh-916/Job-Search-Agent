@@ -65,21 +65,33 @@ Add `--telegram` to any helper to get the result on your phone.
 
 ## 📈 How it performs
 
-Numbers from real runs on an RTX 2000 Ada (16 GB) with `qwen3:14b`. `job-agent stats` refreshes these charts.
+Numbers from real runs on an RTX 2000 Ada (16 GB) with `qwen3:14b`. `job-agent stats` refreshes these charts, which follow GitHub's light or dark theme.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/stage-time-dark.png">
-  <img alt="Wall time per pipeline stage" src="docs/metrics/stage-time-light.png" width="640">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/hero-dark.png">
+  <img alt="Run report: KPIs and a timeline where every sliver is one LLM call" src="docs/metrics/hero-light.png">
 </picture>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/llm-latency-dark.png">
-  <img alt="LLM call latency per stage" src="docs/metrics/llm-latency-light.png" width="640">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/flow-dark.png">
+  <img alt="Where the jobs go: a flow from fetched jobs to top picks, with drop-out reasons" src="docs/metrics/flow-light.png">
 </picture>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/funnel-dark.png">
-  <img alt="Job funnel per stage" src="docs/metrics/funnel-light.png" width="640">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/latency-dark.png">
+  <img alt="LLM call latency per stage as ridgelines on a log scale" src="docs/metrics/latency-light.png" width="80%">
+</picture>
+
+### 🗺️ The market it sees
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/market-dark.png">
+  <img alt="Role by work arrangement heatmap" src="docs/metrics/market-light.png" width="70%">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/calendar-dark.png">
+  <img alt="Calendar of postings per day" src="docs/metrics/calendar-light.png">
 </picture>
 
 Each run records per-stage time, per-call latency, tokens/sec, repair and failure counts, research tool calls and GPU memory peak, so models and prompts can be compared run by run.
