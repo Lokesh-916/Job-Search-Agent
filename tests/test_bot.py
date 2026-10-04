@@ -11,7 +11,7 @@ from job_agent.bot import BadCommand, Invocation, chunks, help_text, parse
         ("now", ["25"], Invocation(["now", "--limit", "25"])),
         ("schedule", ["3"], Invocation(["schedule", "3"])),
         ("schedule", ["22", "once"], Invocation(["schedule", "22", "--once"])),
-        ("top", ["20"], Invocation(["top", "-n", "20"])),
+        ("top", ["20"], Invocation(["top", "--compact", "-n", "20"])),
         ("show", ["112024"], Invocation(["show", "112024"])),
         ("pitch", ["112024"], Invocation(["pitch", "112024"], llm=True)),
         ("ask", ["remote", "AI", "jobs?"], Invocation(["ask", "remote AI jobs?"], llm=True)),

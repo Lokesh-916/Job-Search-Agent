@@ -17,7 +17,7 @@ from pathlib import Path
 
 from telegram import BotCommand, Update
 from telegram.constants import ParseMode
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
 from job_agent.settings import Settings
 
@@ -78,9 +78,9 @@ def parse(command: str, words: list[str]) -> Invocation:
         raise BadCommand("Usage: /schedule 3 (daily at 03:00) or /schedule 3 once")
     if command == "top":
         if not words:
-            return Invocation(["top"])
+            return Invocation(["top", "--compact"])
         if len(words) == 1 and words[0].isdigit():
-            return Invocation(["top", "-n", words[0]])
+            return Invocation(["top", "--compact", "-n", words[0]])
         raise BadCommand("Usage: /top or /top 20")
     if command in {"show", "pitch", "prep", "tailor"}:
         if len(words) == 1 and JOB_ID.match(words[0]):
@@ -153,8 +153,21 @@ def build_app(settings: Settings, root: Path) -> Application:
             await msg.reply_text("This bot is private for now. 🙂")
             return
         command = msg.text.split()[0].lstrip("/").split("@")[0].lower()
+        await execute(msg, command, context.args or [])
+
+    async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Digest buttons carry "command:job_id"; they go through the same validation."""
+        query = update.callback_query
+        if not is_owner(update):
+            await query.answer("This bot is private for now.")
+            return
+        await query.answer()
+        command, _, arg = (query.data or "").partition(":")
+        await execute(query.message, command, [arg] if arg else [])
+
+    async def execute(msg, command: str, words: list[str]) -> None:
         try:
-            inv = parse(command, context.args or [])
+            inv = parse(command, words)
         except BadCommand as exc:
             await msg.reply_text(str(exc))
             return
@@ -170,5 +183,6 @@ def build_app(settings: Settings, root: Path) -> Application:
 
     app = Application.builder().token(token).post_init(post_init).build()
     app.add_handler(CommandHandler(["help", "start"], on_help))
+    app.add_handler(CallbackQueryHandler(on_button))
     app.add_handler(CommandHandler([n for n, _ in COMMANDS if n != "help"], on_command))
     return app
