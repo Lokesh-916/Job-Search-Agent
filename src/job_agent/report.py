@@ -23,6 +23,7 @@ CompanyResearch = Callable[[str], dict[str, Any] | None]  # company_id -> resear
 class Report:
     jobs: list[dict[str, Any]] = field(default_factory=list)
     companies: list[dict[str, Any]] = field(default_factory=list)
+    pending: int = 0  # fetched but not triaged yet (e.g. a --limit test run)
 
 
 def _join(items: list[str] | None) -> str:
@@ -60,7 +61,6 @@ def job_record(
     ex: Extraction | None,
     a: Assessment | None,
     scored: Scored,
-    status: sqlite3.Row | None,
     research: dict[str, Any] | None,
     run_date: str,
     threshold: float,
@@ -78,9 +78,7 @@ def job_record(
         "Score": scored.score,
         "Tier": _tier(scored.score, threshold),
         "New": "🆕" if row["first_seen"][:10] == run_date else "",
-        "Status": status["status"] if status else "",
-        "My Notes": status["notes"] if status else "",
-        "Applied On": status["applied_on"] if status else "",
+        "Status": "",  # a dropdown for the reader's own copy; not read back
         # Role
         "Title": job.get("title") or row["title"],
         "Company": row["company_name"],
@@ -212,12 +210,14 @@ def build_report(
     run_date: str | None = None,
 ) -> Report:
     run_date = run_date or datetime.now(UTC).date().isoformat()
-    statuses = store.user_status()
     report = Report()
     companies: dict[str, tuple[dict, int]] = {}
     for row in store.open_jobs():
         job_id = row["job_id"]
         triage = _parse(Triage, stage_result(store, job_id, "triage"))
+        if triage is None:
+            report.pending += 1
+            continue
         ex = _parse(Extraction, stage_result(store, job_id, "extract"))
         a = _parse(Assessment, stage_result(store, job_id, "assess"))
         detail = json.loads(row["detail_json"] or "{}")
@@ -227,7 +227,7 @@ def build_report(
             settings.preferences, settings.scoring,
         )  # fmt: skip
         rec = job_record(
-            row, triage, ex, a, scored, statuses.get(job_id),
+            row, triage, ex, a, scored,
             research(row["company_id"]), run_date, settings.scoring.top_pick_threshold,
         )  # fmt: skip
         report.jobs.append(rec)
