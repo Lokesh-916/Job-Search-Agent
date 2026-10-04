@@ -73,3 +73,18 @@ def test_save_and_list_runs(tmp_path):
         assert run["model"] == "ollama:qwen3:14b" and '"triage": 105' in run["summary_json"]
         rows = s.llm_calls("r1")
         assert [(r["stage"], r["ok"]) for r in rows] == [("triage", 1), ("assess", 0)]
+
+
+def test_old_llm_calls_table_gets_started_column(tmp_path):
+    import sqlite3
+
+    db = sqlite3.connect(tmp_path / "j.db")
+    db.execute(
+        "CREATE TABLE llm_calls (run_id TEXT, stage TEXT, latency_s REAL, input_tokens INT,"
+        " output_tokens INT, load_s REAL, eval_s REAL, ok INT)"
+    )
+    db.commit()
+    db.close()
+    with Store(tmp_path / "j.db") as s:
+        cols = {r[1] for r in s.db.execute("PRAGMA table_info(llm_calls)")}
+    assert "started_s" in cols

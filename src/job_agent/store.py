@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS runs (
 CREATE TABLE IF NOT EXISTS llm_calls (
     run_id        TEXT NOT NULL,
     stage         TEXT NOT NULL,
+    started_s     REAL,
     latency_s     REAL NOT NULL,
     input_tokens  INTEGER,
     output_tokens INTEGER,
@@ -91,6 +92,13 @@ class Store:
         self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
+        self._migrate()
+
+    def _migrate(self) -> None:
+        """Additive column migrations for databases created by older versions."""
+        cols = {r[1] for r in self.db.execute("PRAGMA table_info(llm_calls)")}
+        if "started_s" not in cols:
+            self.db.execute("ALTER TABLE llm_calls ADD COLUMN started_s REAL")
 
     def close(self) -> None:
         self.db.close()
@@ -248,9 +256,10 @@ class Store:
                 (run_id, started_at, now_iso(), model, json.dumps(options), json.dumps(summary)),
             )
             self.db.executemany(
-                "INSERT INTO llm_calls VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO llm_calls (run_id, stage, started_s, latency_s, input_tokens,"
+                " output_tokens, load_s, eval_s, ok) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [
-                    (run_id, c.stage, c.latency_s, c.input_tokens, c.output_tokens,
+                    (run_id, c.stage, c.started, c.latency_s, c.input_tokens, c.output_tokens,
                      c.load_s, c.eval_s, int(c.ok))
                     for c in calls
                 ],
