@@ -16,8 +16,8 @@
 Every job tab is an Excel table with filters, frozen headers, clickable links, colour-coded scores and grouped (collapsible) column bands.
 
 ## Job columns
-**Tracking:** Rank · Score (0–100) · Tier (🔥 / ✅ / 🤔) · 🆕 New · Status (dropdown: To Apply / Applied / Interviewing / Offer / Rejected / Skip) · My Notes · Applied On
-> Status, My Notes and Applied On are read back from the previous day's workbook, so your edits carry forward.
+**Tracking:** Score (0–100) · Tier (🔥 / ✅ / 🤔) · 🆕 New · Status (a dropdown for your own copy: To Apply / Applied / Interviewing / Offer / Rejected / Skip; nothing is read back)
+> Jobs a `--limit` run hasn't reached yet aren't listed. The Dashboard counts them as ⏳ Not processed yet.
 
 **Role:** Title · Company · Category (AI/ML · LLM/Agents · Full-stack · Backend · Data · Other) · Builds AI tools? (Y/N + why) · Job URL · Apply URL · Posted · Age (days) · Openings at company
 
