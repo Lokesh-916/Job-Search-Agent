@@ -14,7 +14,7 @@ from job_agent.sources.waas.search import (
 def test_build_filters_default():
     assert build_filters(WaasSourceConfig()) == (
         "(job_type:fulltime) "
-        "AND (min_experience:0 OR min_experience:1) "
+        "AND (min_experience:0) "
         "AND (remote:yes OR remote:only OR locations_for_search:IN OR us_visa_required:possible) "
         "AND (us_visa_required:none OR us_visa_required:possible OR locations_for_search:IN)"
     )

@@ -27,7 +27,7 @@ class LLMConfig(BaseModel):
 class WaasSourceConfig(BaseModel):
     roles: list[str] = Field(default_factory=list)
     job_types: list[str] = Field(default_factory=lambda: ["fulltime"])
-    max_min_experience: int = 1
+    max_min_experience: int = 0
     remote: list[str] = Field(default_factory=lambda: ["yes", "only"])
     locations: list[str] = Field(default_factory=lambda: ["IN"])
     exclude_us_auth_required: bool = True
