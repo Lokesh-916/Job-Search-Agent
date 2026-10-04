@@ -89,3 +89,19 @@ def test_preflight_failure_skips_work_but_tells_user(tmp_path, monkeypatch):
     assert state["abort"].startswith("vram")
     assert not state.get("workbook")
     assert FakeTelegram.sent[0][0] == "msg" and "skipped" in FakeTelegram.sent[0][1]
+
+
+def test_run_metrics_are_saved(tmp_path, monkeypatch):
+    import json
+
+    from job_agent.store import Store
+
+    settings = setup(tmp_path, monkeypatch)
+    asyncio.run(graph.run_pipeline(settings, {"notify": False}))
+    with Store(settings.paths.data_dir / "jobs.db") as store:
+        [run] = store.runs()
+        summary = json.loads(run["summary_json"])
+    assert set(summary["stage_seconds"]) >= {"preflight", "fetch", "triage", "assess", "export"}
+    assert summary["outcome"]["scored"] == 1 and summary["outcome"]["pending"] == 0
+    assert summary["outcome"]["buckets"] == {"remote_foreign": 1, "rejected": 1}
+    assert "research:summary_fallback" in summary["events"]  # fake model can't call tools
