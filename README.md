@@ -2,7 +2,7 @@
 
 > A local-LLM agent that hunts YC startup jobs so I don't have to doom-scroll job boards.
 
-Every day it pulls fresher-friendly roles from [Work at a Startup](https://www.workatastartup.com), digs into each company, judges every job against my profile with an LLM running on my own GPU, and hands me one tidy Excel workbook plus a Telegram ping. I still apply myself. This is a scout, not an auto-apply bot.
+Every day it pulls new-grad roles from [Work at a Startup](https://www.workatastartup.com), digs into each company, judges every job against my profile with an LLM running on my own GPU, and sends one tidy Excel workbook to Telegram. I still apply myself. This is a scout, not an auto-apply bot.
 
 ## 🎯 What it optimizes for
 
@@ -12,7 +12,7 @@ Every day it pulls fresher-friendly roles from [Work at a Startup](https://www.w
 | 💰 | Realistic pay in ₹ LPA (dollar salaries converted at live rates) |
 | 🧠 | Practical interviews over LeetCode marathons |
 | 🤖 | Building with AI: agents, LLM apps, AI products |
-| 🎓 | Roles a fresher can actually get |
+| 🎓 | Roles open to new grads |
 
 ## 🧩 How it works
 
@@ -28,14 +28,71 @@ fetch ─▶ triage ─▶ extract ─▶ research ─▶ assess ─▶ score �
 
 **Stack:** LangGraph · Ollama (`qwen3:14b` by default, one config line to swap) · Playwright · SQLite · xlsxwriter
 
-## ⚡ Try it
+## ⌨️ Commands
+
+Run these from the laptop. They're forwarded over SSH to the GPU box, where the data and the model live.
+
+**Runs**
+
+| Command | What it does |
+|---|---|
+| `job-agent now` | Start a run right away (`--limit 25` for a quick one, `--wait-hours 3` if the GPU is busy) |
+| `job-agent schedule 3` | Run every day at 03:00 (any hour 0–23; `--once` for just the next one) |
+| `job-agent unschedule` | Remove all scheduled runs |
+| `job-agent status` | GPU headroom, running and scheduled runs, last run's numbers |
+| `job-agent logs` | Tail of the latest run log |
+
+**Browse results (no GPU needed)**
+
+| Command | What it does |
+|---|---|
+| `job-agent top` | Best-scoring jobs (`--tab remote_india`, `-n 30`) |
+| `job-agent show <id>` | Everything known about one job: facts, judgment, pay, research |
+| `job-agent stats` | Per-run metrics table, and refreshes the charts below |
+
+**🤖 LLM helpers (use the GPU when it's free)**
+
+| Command | What it does |
+|---|---|
+| `job-agent ask "remote AI jobs above 20 LPA?"` | An agent searches your job database and answers |
+| `job-agent pitch <id>` | Founder message, cover note and subject line in your voice |
+| `job-agent prep <id>` | Interview prep: likely rounds, topics, questions with answer pointers |
+| `job-agent tailor <id>` | Which projects to lead the resume with, rewritten bullets, gaps |
+
+Add `--telegram` to any helper to get the result on your phone.
+
+**Setup and maintenance:** `login` (WaaS sign-in), `doctor` (preflight checks), `fetch`, `report`, `run`, `notify-test`.
+
+## 📈 How it performs
+
+Numbers from real runs on an RTX 2000 Ada (16 GB) with `qwen3:14b`. `job-agent stats` refreshes these charts.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/stage-time-dark.png">
+  <img alt="Wall time per pipeline stage" src="docs/metrics/stage-time-light.png" width="640">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/llm-latency-dark.png">
+  <img alt="LLM call latency per stage" src="docs/metrics/llm-latency-light.png" width="640">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/funnel-dark.png">
+  <img alt="Job funnel per stage" src="docs/metrics/funnel-light.png" width="640">
+</picture>
+
+Each run records per-stage time, per-call latency, tokens/sec, repair and failure counts, research tool calls and GPU memory peak, so models and prompts can be compared run by run.
+
+## ⚡ Set up your own
 
 ```bash
 uv sync
 cp config.example.yaml config.yaml && cp profile.example.yaml profile.yaml   # make them yours
+cp .env.example .env                                                          # Telegram bot token + chat id
 uv run job-agent login      # sign in to WaaS once
 uv run job-agent doctor     # GPU, Ollama and session checks
-uv run job-agent run --limit 25
+uv run job-agent now --limit 25
 ```
 
-The workbook lands in `workbooks/`. Set Status and notes there and they carry over to tomorrow's file.
+On the GPU box, set `lab.host: local` in its `config.yaml`. Everywhere else, point `lab.host` at it.
