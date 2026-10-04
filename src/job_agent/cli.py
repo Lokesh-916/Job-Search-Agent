@@ -248,6 +248,13 @@ def logs(lines: int = typer.Option(40, "-n", help="How many lines.")) -> None:
 
 
 CHARTS_DIR = Path("docs/metrics")
+WHERE = {
+    "remote_foreign": "🌍 remote",
+    "remote_india": "🏠 remote (IN)",
+    "india_onsite": "🏢 India office",
+    "abroad_sponsored": "✈️ abroad",
+    "needs_review": "🔎 review",
+}
 
 
 @app.command()
@@ -269,12 +276,13 @@ def stats(runs: int = typer.Option(10, "-n", help="How many recent runs to list.
     settings = get_settings()
     with Store(settings.paths.data_dir / "jobs.db") as store:
         rows = store.runs()[-runs:]
+        call_counts = {r["run_id"]: len(store.llm_calls(r["run_id"])) for r in rows}
         made = render_all(store, settings.paths.data_dir / "charts")
     table = Table("date", "model", "min", "LLM calls", "tok/s", "scored", "top", "failed")
     for r in rows:
         s = json.loads(r["summary_json"] or "{}")
         llm = s.get("llm", {})
-        calls = sum(v["calls"] for v in llm.values())
+        calls = call_counts[r["run_id"]]
         speeds = [v["tokens_per_s"] for v in llm.values() if v.get("tokens_per_s")]
         out = s.get("outcome", {})
         table.add_row(
@@ -310,7 +318,7 @@ def top(
     for j in jobs[:n]:
         table.add_row(
             f"{j['Tier']} {j['Score']:.0f}", j["Title"][:40], j["Company"][:20],
-            f"{j['Work mode']} · {j['_bucket']}", j["Realistic (₹ LPA)"] or j["Listed (₹ LPA)"],
+            WHERE.get(j["_bucket"], j["_bucket"]), j["Realistic (₹ LPA)"] or j["Listed (₹ LPA)"],
             j["DSA risk"], j["Verdict"], j["Job ID"],
         )  # fmt: skip
     console.print(table)
