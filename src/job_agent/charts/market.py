@@ -36,7 +36,7 @@ def where_of(hit: dict) -> str:
     return "Abroad · visa"
 
 
-def calendar_chart(theme: Theme, hits: list[dict], out: Path, weeks: int = 18):
+def calendar_chart(theme: Theme, hits: list[dict], out: Path, weeks: int = 26):
     days = Counter(h["created_at"][:10] for h in hits if h.get("created_at"))
     if not days:
         return None
@@ -49,7 +49,7 @@ def calendar_chart(theme: Theme, hits: list[dict], out: Path, weeks: int = 18):
             grid[day.weekday(), (day - start).days // 7] = n
     fig = figure(theme, 11, 3.9)
     header(fig, theme, "When startups post",
-           f"New-grad-friendly postings per day, last {weeks} weeks · {int(grid.sum())} jobs",
+           f"Postings per day over the last {weeks} weeks · {int(grid.sum())} of {len(hits)} jobs",
            eyebrow="Posting calendar")  # fmt: skip
     ax = fig.add_axes((0.08, 0.1, 0.84, 0.56))
     ax.set_facecolor(theme.surface)
@@ -58,7 +58,7 @@ def calendar_chart(theme: Theme, hits: list[dict], out: Path, weeks: int = 18):
     for wk in range(weeks):
         for wd in range(7):
             n = grid[wd, wk]
-            color = theme.panel if n == 0 else cmap(0.25 + 0.75 * (n / peak))
+            color = theme.panel if n == 0 else cmap(0.25 + 0.75 * (n / peak) ** 0.5)
             ax.add_patch(FancyBboxPatch((wk + 0.08, 6 - wd + 0.08), 0.84, 0.84,
                                         boxstyle="round,pad=0,rounding_size=0.18",
                                         facecolor=color, edgecolor="none"))  # fmt: skip
@@ -69,7 +69,7 @@ def calendar_chart(theme: Theme, hits: list[dict], out: Path, weeks: int = 18):
     for wd, name in ((0, "Mon"), (2, "Wed"), (4, "Fri")):
         ax.text(-0.3, 6 - wd + 0.5, name, ha="right", va="center", fontsize=8, color=theme.muted)
     for i, f in enumerate((0, 0.25, 0.5, 0.75, 1.0)):
-        color = theme.panel if f == 0 else cmap(0.25 + 0.75 * f)
+        color = theme.panel if f == 0 else cmap(0.25 + 0.75 * f**0.5)
         ax.add_patch(FancyBboxPatch((weeks - 5.2 + i * 0.9, -1.15), 0.7, 0.7,
                                     boxstyle="round,pad=0,rounding_size=0.15",
                                     facecolor=color, edgecolor="none"))  # fmt: skip
