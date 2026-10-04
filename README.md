@@ -30,7 +30,7 @@ fetch ─▶ triage ─▶ extract ─▶ research ─▶ assess ─▶ score �
 
 ## ⌨️ Commands
 
-Run these from the laptop. They're forwarded over SSH to the GPU box, where the data and the model live.
+Run these from the laptop. They're forwarded over SSH to the GPU box, where the data and the model live. Install once with `uv tool install --editable .` to get a global `job-agent` command that works from any folder.
 
 **Runs**
 
