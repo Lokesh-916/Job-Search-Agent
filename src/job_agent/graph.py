@@ -145,7 +145,7 @@ def build_graph(settings: Settings, store: Store):
             if state.get("abort"):
                 tg.send_message(f"⚠️ <b>Job run skipped</b>\n{state['abort']}")
                 return {}
-            tg.send_message(_digest(state))
+            tg.send_message(_digest(state), buttons=digest_buttons(state.get("top", [])))
             if state.get("workbook"):
                 tg.send_document(Path(state["workbook"]), caption="Today's workbook")
         except NotifyError as exc:
@@ -213,10 +213,10 @@ def _perf_line(m: metrics.RunMetrics | None, started: float) -> str:
 
 def _digest(state: PipelineState) -> str:
     lines = [f"🗂 <b>Job picks · {state['run_date']}</b>"]
-    for j in state.get("top", []):
+    for i, j in enumerate(state.get("top", []), start=1):
         pay = j.get("Realistic (₹ LPA)") or j.get("Listed (₹ LPA)") or "pay n/a"
         lines.append(
-            f"{j.get('Tier', '')} <b>{j['Score']:.0f}</b> · "
+            f"{i}. {j.get('Tier', '')} <b>{j['Score']:.0f}</b> · "
             f'<a href="{j["Apply URL"]}">{j["Title"]}</a> @ {j["Company"]} · '
             f"{j.get('Work mode', '')} · {pay}"
         )
@@ -224,6 +224,15 @@ def _digest(state: PipelineState) -> str:
         lines.append("No scored jobs this run.")
     lines.append(_perf_line(metrics.current(), state["started"]))
     return "\n".join(lines)
+
+
+def digest_buttons(top: list[dict]) -> list[list[tuple[str, str]]]:
+    """One row per job: tap to open details or run an LLM helper for it in the bot."""
+    return [
+        [(f"{i}. 🔎", f"show:{j['Job ID']}"), ("✍️ Pitch", f"pitch:{j['Job ID']}"),
+         ("🎯 Prep", f"prep:{j['Job ID']}"), ("📄 Tailor", f"tailor:{j['Job ID']}")]
+        for i, j in enumerate(top, start=1)
+    ]  # fmt: skip
 
 
 async def run_pipeline(settings: Settings, options: RunOptions | None = None) -> PipelineState:

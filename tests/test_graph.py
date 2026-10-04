@@ -30,8 +30,9 @@ class FakeTelegram:
     def __init__(self, secrets):
         pass
 
-    def send_message(self, text):
+    def send_message(self, text, buttons=None):
         FakeTelegram.sent.append(("msg", text))
+        FakeTelegram.buttons = buttons
 
     def send_document(self, path, caption=""):
         FakeTelegram.sent.append(("doc", Path(path).name))
@@ -77,6 +78,7 @@ def test_full_run_writes_workbook_and_notifies(tmp_path, monkeypatch):
     assert log["Assess"].startswith("1/1 done")
     kinds = [k for k, _ in FakeTelegram.sent]
     assert kinds == ["msg", "doc"] and "AI Engineer" in FakeTelegram.sent[0][1]
+    assert ("✍️ Pitch", "pitch:1") in FakeTelegram.buttons[0]
 
     # Second run: nothing new for the LLM.
     state = asyncio.run(graph.run_pipeline(settings, {"notify": False}))
