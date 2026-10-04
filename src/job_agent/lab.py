@@ -22,6 +22,17 @@ MARK = "# job-agent:schedule"
 UV = "$HOME/.local/bin/uv"
 
 
+WINDOWS_OPENSSH = Path(r"C:\Windows\System32\OpenSSH")
+
+
+def ssh_tool(configured: str, tool: str = "ssh") -> str:
+    """Prefer Windows' own OpenSSH: Git-for-Windows' ssh doesn't see the Windows key agent."""
+    native = WINDOWS_OPENSSH / f"{tool}.exe"
+    if os.name == "nt" and configured == "ssh" and native.exists():
+        return str(native)
+    return configured if tool == "ssh" else configured.replace("ssh", tool)
+
+
 def forward(lab: LabConfig, argv: list[str], llm: bool = False) -> int:
     """Run `job-agent <argv>` on the lab box, streaming its output. Returns the exit code."""
     cmd = f"{UV} run job-agent {shlex.join(argv)}"
@@ -29,7 +40,7 @@ def forward(lab: LabConfig, argv: list[str], llm: bool = False) -> int:
         cmd = f"scripts/with_ollama.sh {cmd}"
     remote = f"cd {lab.repo} && PYTHONIOENCODING=utf-8 {cmd}"
     tty = ["-t"] if sys.stdin.isatty() and sys.stdout.isatty() else []
-    return subprocess.call([lab.ssh, *tty, lab.host, remote])
+    return subprocess.call([ssh_tool(lab.ssh), *tty, lab.host, remote])
 
 
 def start_detached(repo: Path, args: list[str]) -> None:
