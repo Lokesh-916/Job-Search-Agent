@@ -41,15 +41,6 @@ CREATE TABLE IF NOT EXISTS llm_results (
     PRIMARY KEY (job_id, stage)
 );
 
--- What the user typed into the workbook (Status / My Notes / Applied On), carried forward.
-CREATE TABLE IF NOT EXISTS user_status (
-    job_id     TEXT PRIMARY KEY,
-    status     TEXT,
-    notes      TEXT,
-    applied_on TEXT,
-    updated_at TEXT NOT NULL
-);
-
 -- Company research is shared by all of a company's jobs and reused for `cache_days`.
 CREATE TABLE IF NOT EXISTS company_research (
     company_id    TEXT PRIMARY KEY,
@@ -187,20 +178,6 @@ class Store:
                 (job_id, stage, model, input_hash,
                  json.dumps(result) if result is not None else None, error, now_iso()),
             )  # fmt: skip
-
-    def save_user_status(self, entries: dict[str, dict[str, str | None]]) -> None:
-        with self.db:
-            self.db.executemany(
-                """INSERT OR REPLACE INTO user_status
-                   (job_id, status, notes, applied_on, updated_at) VALUES (?, ?, ?, ?, ?)""",
-                [
-                    (job_id, e.get("status"), e.get("notes"), e.get("applied_on"), now_iso())
-                    for job_id, e in entries.items()
-                ],
-            )
-
-    def user_status(self) -> dict[str, sqlite3.Row]:
-        return {r["job_id"]: r for r in self.db.execute("SELECT * FROM user_status")}
 
     def research_fresh(self, company_id: str, model: str, cache_days: int) -> bool:
         cutoff = (datetime.now(UTC) - timedelta(days=cache_days)).isoformat("T", "seconds")

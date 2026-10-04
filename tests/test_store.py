@@ -49,16 +49,6 @@ def test_stage_cache_invalidation(tmp_path):
         assert s.needs_stage("7", "triage", qwen, h2)  # failures retry
 
 
-def test_user_status_roundtrip(tmp_path):
-    with Store(tmp_path / "j.db") as s:
-        s.save_user_status(
-            {"7": {"status": "Applied", "notes": "ping founder", "applied_on": None}}
-        )
-        s.save_user_status({"7": {"status": "Interviewing", "notes": "ping founder"}})
-        row = s.user_status()["7"]
-        assert row["status"] == "Interviewing" and row["notes"] == "ping founder"
-
-
 def test_company_research_cache(tmp_path):
     with Store(tmp_path / "j.db") as s:
         assert not s.research_fresh("9", "m", 14) and s.get_research("9") is None
