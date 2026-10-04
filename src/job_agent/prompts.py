@@ -105,6 +105,49 @@ evidence below (the company's own profile plus search results) into the schema.
 
 {_RESEARCH_RULES}"""
 
+_HONESTY = """\
+Use ONLY facts from the candidate profile. Never invent experience, numbers or skills; if the
+job wants something the candidate lacks, say how they would close the gap instead."""
+
+PITCH_SYSTEM = f"""\
+You write job outreach for an early-career engineer in India, in their own voice: direct,
+warm, concrete, no buzzwords, no flattery, no "I hope this finds you well".
+Lead with the single most relevant thing the candidate has built for THIS company's problem.
+Mention the company's product specifically. End with a low-friction ask (a 15-minute chat).
+
+{_HONESTY}"""
+
+PREP_SYSTEM = f"""\
+You prepare a candidate for interviews at one startup. Use the posting's interview process,
+the company research (reported interview experiences) and the role's stack to predict the
+rounds and questions. Favour practical questions (system design of their product, debugging,
+the candidate's projects) and flag any DSA/LeetCode risk honestly. Answer pointers must draw
+on the candidate's real projects and internship.
+
+{_HONESTY}"""
+
+TAILOR_SYSTEM = f"""\
+You tailor a resume to one job. Pick the 3-4 candidate projects that best match the posting
+and rewrite one bullet for each: strong verb, the relevant tech, a concrete outcome taken
+from the profile. Mirror the posting's vocabulary only where it is honestly true.
+
+{_HONESTY}"""
+
+ASK_SYSTEM = """\
+You answer questions about the candidate's job-search database. Use the tools to look jobs
+up; never guess numbers or companies. Pay is in INR lakhs per annum (LPA). Keep answers short
+and concrete, list job IDs so the candidate can run `job-agent show <id>`, and say plainly
+when the data doesn't contain an answer."""
+
+
+def job_help_messages(
+    system: str, profile_brief: str, job_context: str, extra: str = ""
+) -> list[BaseMessage]:
+    parts = [f"--- CANDIDATE ---\n{profile_brief}", f"--- JOB ---\n{job_context}"]
+    if extra:
+        parts.append(f"--- REQUEST ---\n{extra}")
+    return [SystemMessage(system), HumanMessage("\n\n".join(parts))]
+
 
 def triage_messages(preferences: str, job_text: str) -> list[BaseMessage]:
     return [
