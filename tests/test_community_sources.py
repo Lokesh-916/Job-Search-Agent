@@ -4,7 +4,7 @@ import httpx
 
 from job_agent.community.models import Company, load_companies
 from job_agent.community.sources import greenhouse, lever
-from job_agent.community.sources.registry import fetch_company
+from job_agent.community.sources.registry import FETCHERS, fetch_company
 
 GH = {"jobs": [{"id": 7, "title": " SWE, New Grad ", "absolute_url": "https://x/7",
                 "location": {"name": "Bengaluru, India"}, "updated_at": "2026-10-01T10:00:00Z",
@@ -44,7 +44,7 @@ def test_lever_normalises():
 
 
 def test_unknown_platform_and_http_errors_are_reported_not_raised():
-    co = Company("Gamma", "mnc", "workday", "gamma")
+    co = Company("Gamma", "mnc", "taleo", "gamma")
     assert "no fetcher" in fetch_company(co, client({})).error
     broken = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(404)))
     res = fetch_company(Company("Delta", "startup", "lever", "delta"), broken)
@@ -53,6 +53,56 @@ def test_unknown_platform_and_http_errors_are_reported_not_raised():
 
 def test_curated_list_loads():
     companies = load_companies(Path("config/companies.yaml"))
-    assert len(companies) >= 40
-    assert {c.ats for c in companies} <= {"greenhouse", "lever"}
-    assert any(c.name == "Stripe" and c.tier == "unicorn" and c.india for c in companies)
+    assert len(companies) >= 60
+    assert {c.ats for c in companies} <= set(FETCHERS)
+    assert all(c.site for c in companies if c.ats == "workday")
+    assert any(c.name == "Swiggy" and c.tier == "unicorn" for c in companies)
+
+
+def test_workday_posted_dates():
+    from datetime import date
+
+    from job_agent.community.sources.workday import posted_date
+
+    today = date(2026, 10, 5)
+    assert posted_date("Posted Today", today) == "2026-10-05"
+    assert posted_date("Posted Yesterday", today) == "2026-10-04"
+    assert posted_date("Posted 30+ Days Ago", today) == "2026-09-05"
+    assert posted_date("", today) is None
+
+
+def test_ashby_and_smartrecruiters_normalise():
+    from job_agent.community.sources import ashby, smartrecruiters
+
+    ash = {
+        "jobs": [
+            {
+                "id": "a1",
+                "title": "AI Engineer",
+                "jobUrl": "https://x/a1",
+                "location": "Bengaluru",
+                "secondaryLocations": [{"location": "Remote"}],
+                "employmentType": "FullTime",
+                "publishedAt": "2026-10-02T00:00:00Z",
+                "compensation": {"compensationTierSummary": "₹20L – ₹30L"},
+            }
+        ]
+    }
+    [a] = ashby.fetch(Company("Sarvam AI", "startup", "ashby", "sarvam"), client(ash))
+    assert a.location == "Bengaluru; Remote" and a.extra["pay"] == "₹20L – ₹30L"
+    sr = {
+        "totalFound": 1,
+        "content": [
+            {
+                "id": "9",
+                "name": "SDE 1",
+                "releasedDate": "2026-10-01",
+                "location": {"city": "Bengaluru", "remote": False},
+                "typeOfEmployment": {"label": "Full-time"},
+            }
+        ],
+    }
+    [b] = smartrecruiters.fetch(
+        Company("Swiggy", "unicorn", "smartrecruiters", "swiggy"), client(sr)
+    )
+    assert b.location == "Bengaluru, India" and b.url.endswith("/swiggy/9")
