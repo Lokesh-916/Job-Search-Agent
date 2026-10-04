@@ -309,6 +309,7 @@ def top(
     tab: str = typer.Option(
         None, help="remote_foreign | remote_india | india_onsite | abroad_sponsored"
     ),
+    compact: bool = typer.Option(False, help="Two short lines per job (for Telegram)."),
 ) -> None:
     """Best-scoring jobs from the database, no LLM needed."""
     _on_lab()
@@ -321,6 +322,18 @@ def top(
         rates = load_inr_rates(settings.paths.data_dir / "fx.json")
         rep = build_report(store, settings, rates, research_columns(store))
     jobs = [j for j in rep.jobs if j["Score"] is not None and (not tab or j["_bucket"] == tab)]
+    if compact:  # phone-friendly: two short lines per job
+        for i, j in enumerate(jobs[:n], start=1):
+            pay = j["Realistic (₹ LPA)"] or j["Listed (₹ LPA)"] or "pay n/a"
+            console.print(f"{i}. {j['Tier']} {j['Score']:.0f}  {j['Title'][:38]} @ {j['Company']}",
+                          markup=False)  # fmt: skip
+            console.print(f"   {WHERE.get(j['_bucket'], j['_bucket'])} · {pay} · "
+                          f"DSA {j['DSA risk']} · id {j['Job ID']}", markup=False)  # fmt: skip
+        if not jobs:
+            console.print("No scored jobs yet.")
+        if rep.pending:
+            console.print(f"\n{rep.pending} fetched jobs not processed yet.")
+        return
     table = Table("score", "title", "company", "where", "pay (₹ LPA)", "DSA", "verdict", "id")
     for j in jobs[:n]:
         table.add_row(
