@@ -67,6 +67,12 @@ ENTRY = re.compile(
     r"university|0\s*[-–to]+\s*[12]\s*(years|yrs)|20(26|27) (batch|grad)|batch of 20(26|27)",
     re.I,
 )
+# In descriptions only unambiguous phrases count ("graduate degree" is not a new-grad role).
+ENTRY_DESC = re.compile(
+    r"new grads?\b|fresher|entry[- ]level|early[- ]career|campus (hire|hiring|recruit)|"
+    r"0\s*[-–to]+\s*[12]\s*(years|yrs)|20(26|27) (batch|graduates?|pass(ing)?[- ]?outs?)",
+    re.I,
+)
 INTERN = re.compile(r"\bintern(ship)?s?\b|\bco-?op\b|summer analyst|apprentice", re.I)
 YEARS = re.compile(r"(\d{1,2})\s*\+?\s*(?:-|to)?\s*\d{0,2}\s*\+?\s*(?:years|yrs)", re.I)
 STIPEND = re.compile(r"(?:stipend|₹|inr|rs\.?)\s*[:\-]?\s*([\d,]{4,7})(?:\s*(?:-|to)\s*([\d,]{4,7}))?",
@@ -129,7 +135,7 @@ def classify(p: Posting) -> Verdict:
         return Verdict(False, "Senior role")
     if (m := TITLE_YEARS.search(title)) and int(m.group(1)) >= 2:
         return Verdict(False, f"Needs {m.group(1)}+ years")
-    if ENTRY.search(title) or ENTRY.search(p.description[:1500]):
+    if ENTRY.search(title) or ENTRY_DESC.search(p.description[:3000]):
         return Verdict(True, "Entry level", "job", "Entry level", category)
     years = min_years(p.description)
     if years is not None and years >= 2:
