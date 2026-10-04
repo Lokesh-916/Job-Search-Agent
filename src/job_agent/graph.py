@@ -27,7 +27,15 @@ from job_agent.profile import load_profile
 from job_agent.report import build_report, research_columns
 from job_agent.settings import Settings
 from job_agent.sources.waas.fetch import fetch_waas
-from job_agent.stages import research_brief, run_assess, run_extract, run_research, run_triage
+from job_agent.stages import (
+    kept_jobs,
+    research_brief,
+    run_assess,
+    run_extract,
+    run_research,
+    run_triage,
+    stage_result,
+)
 from job_agent.store import Store
 
 
@@ -119,6 +127,8 @@ def build_graph(settings: Settings, store: Store):
             "top_picks": sum(1 for j in live if j["Score"] >= settings.scoring.top_pick_threshold),
             "pending": report.pending,
         }
+        top_picks = outcome["top_picks"]
+        outcome["funnel"] = pipeline_funnel(store, report.pending, len(live), top_picks)
         return {
             "workbook": str(path),
             "top": live[:5],
@@ -153,6 +163,24 @@ def build_graph(settings: Settings, store: Store):
                  ("notify", END)]:  # fmt: skip
         g.add_edge(a, b)
     return g.compile()
+
+
+def pipeline_funnel(store: Store, pending: int, scored: int, top_picks: int) -> dict[str, int]:
+    """How many open jobs reached each stage (cumulative database state, not just this run)."""
+    open_jobs = store.open_jobs()
+
+    def with_result(stage: str) -> int:
+        return sum(1 for r in open_jobs if stage_result(store, r["job_id"], stage) is not None)
+
+    return {
+        "Fetched": len(open_jobs),
+        "Triaged": len(open_jobs) - pending,
+        "Passed triage": len(kept_jobs(store)),
+        "Extracted": with_result("extract"),
+        "Assessed": with_result("assess"),
+        "Scored": scored,
+        "Top picks": top_picks,
+    }
 
 
 def _timed(name: str, fn):
