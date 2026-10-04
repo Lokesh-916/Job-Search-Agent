@@ -9,6 +9,8 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from pydantic import BaseModel
 
+from job_agent import metrics
+
 
 class StructuredOutputError(RuntimeError):
     pass
@@ -20,18 +22,24 @@ def _raw_text(raw: object) -> str:
 
 
 async def ainvoke_structured[T: BaseModel](
-    llm: BaseChatModel, schema: type[T], messages: Sequence[BaseMessage], repairs: int = 1
+    llm: BaseChatModel,
+    schema: type[T],
+    messages: Sequence[BaseMessage],
+    repairs: int = 1,
+    stage: str = "other",
 ) -> T:
     """Constrained JSON output; on a validation error, show the model its mistake and retry."""
     runnable = llm.with_structured_output(schema, method="json_schema", include_raw=True)
     convo = list(messages)
     for attempt in range(repairs + 1):
-        out = await runnable.ainvoke(convo)
+        out = await runnable.ainvoke(convo, config=metrics.llm_config(stage))
         if out.get("parsed") is not None and out.get("parsing_error") is None:
             return out["parsed"]
         error = out.get("parsing_error") or "empty output"
         if attempt == repairs:
+            metrics.event(f"{stage}:invalid_json")
             raise StructuredOutputError(f"{schema.__name__}: {error}")
+        metrics.event(f"{stage}:repair")
         convo += [
             AIMessage(_raw_text(out.get("raw"))),
             HumanMessage(
@@ -47,6 +55,7 @@ async def abatch_structured[T: BaseModel](
     schema: type[T],
     batches: dict[str, Sequence[BaseMessage]],
     max_concurrency: int = 2,
+    stage: str = "other",
 ) -> dict[str, T | Exception]:
     """Run many prompts with bounded concurrency; per-item failures are returned, not raised."""
     sem = asyncio.Semaphore(max_concurrency)
@@ -54,7 +63,7 @@ async def abatch_structured[T: BaseModel](
     async def one(key: str, msgs: Sequence[BaseMessage]) -> tuple[str, T | Exception]:
         async with sem:
             try:
-                return key, await ainvoke_structured(llm, schema, msgs)
+                return key, await ainvoke_structured(llm, schema, msgs, stage=stage)
             except Exception as exc:
                 return key, exc
 

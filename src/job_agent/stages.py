@@ -64,6 +64,7 @@ async def _run_stage(
         schema,
         {job_id: build(row) for job_id, row in by_id.items()},
         settings.llm.max_concurrency,
+        stage=stage,
     )
     for job_id, out in results.items():
         input_hash = keys[job_id]
