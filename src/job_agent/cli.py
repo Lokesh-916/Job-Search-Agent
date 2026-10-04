@@ -490,6 +490,83 @@ def bot() -> None:
     build_app(settings, Path.cwd()).run_polling(drop_pending_updates=True)
 
 
+community_app = typer.Typer(help="The batch placement feed (India jobs, internships, events).")
+app.add_typer(community_app, name="community")
+
+
+@community_app.command("refresh")
+def community_refresh() -> None:
+    """Fetch every source, curate, and build today's sheet (no messages sent)."""
+    _on_lab()
+    from job_agent.community.service import db_path, refresh_and_build
+    from job_agent.community.store import CommunityStore
+
+    settings = get_settings()
+    with CommunityStore(db_path(settings)) as store:
+        stats, path = refresh_and_build(settings, store)
+    console.print(f"fetched {sum(stats.fetched.values())} postings "
+                  f"({', '.join(f'{k} {v}' for k, v in stats.fetched.most_common())})")  # fmt: skip
+    console.print(f"kept {stats.kept['job']} jobs, {stats.kept['internship']} internships, "
+                  f"{stats.events} events · new: {dict(stats.new)}")  # fmt: skip
+    console.print(f"dropped: {dict(stats.dropped.most_common(6))}")
+    for name, err in stats.errors.items():
+        console.print(f"  [yellow]{name}[/]: {err}")
+    console.print(f"[green]Sheet[/] {path}")
+
+
+@community_app.command("send")
+def community_send(
+    me_only: bool = typer.Option(False, "--me", help="Send only to the coordinator (preview)."),
+) -> None:
+    """Send today's feed to every approved member (or just to you with --me)."""
+    _on_lab()
+    from job_agent.community.service import db_path, deliver
+    from job_agent.community.store import CommunityStore
+
+    settings = get_settings()
+    with CommunityStore(db_path(settings)) as store:
+        targets = [int(settings.secrets.telegram_chat_id)] if me_only else None
+        sent, failed = deliver(settings, store, targets)
+    console.print(f"sent to {sent}; failed {len(failed)}")
+
+
+@community_app.command("daily")
+def community_daily() -> None:
+    """Refresh, then send to everyone. This is what the morning cron runs."""
+    community_refresh()
+    community_send(me_only=False)
+
+
+@community_app.command("users")
+def community_users() -> None:
+    """Who has joined, and their status."""
+    _on_lab()
+    from job_agent.community.service import db_path
+    from job_agent.community.store import CommunityStore
+
+    with CommunityStore(db_path(get_settings())) as store:
+        rows = store.users()
+    table = Table("status", "name", "roll", "username", "joined", "last active", "feeds")
+    for r in rows:
+        active = (r["last_active"] or "")[:10]
+        table.add_row(r["status"], r["name"] or "", r["roll_no"] or "", r["username"] or "",
+                      r["joined_at"][:10], active, str(r["digests"]))  # fmt: skip
+    console.print(table)
+
+
+@community_app.command("bot")
+def community_bot() -> None:
+    """Run the community bot (on the lab box; deploy/job-agent-community-bot.service)."""
+    settings = get_settings()
+    if not settings.lab.is_local:
+        console.print("Run the bot on the lab box (lab.host: local), not here.")
+        raise typer.Exit(1)
+    from job_agent.community.bot import build_app
+
+    console.print("Community bot polling Telegram. Ctrl+C to stop.")
+    build_app(settings).run_polling(drop_pending_updates=True)
+
+
 @app.command("notify-test")
 def notify_test() -> None:
     """Send a test message to the configured Telegram chat."""
