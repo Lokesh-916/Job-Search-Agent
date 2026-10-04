@@ -106,3 +106,4 @@ def test_run_metrics_are_saved(tmp_path, monkeypatch):
     assert summary["outcome"]["buckets"] == {"remote_foreign": 1, "rejected": 1}
     assert "research:summary_fallback" in summary["events"]  # fake model can't call tools
     assert summary["outcome"]["funnel"]["Passed triage"] == 1
+    assert ["Triaged", "Non-technical", 1] in summary["outcome"]["flow"]

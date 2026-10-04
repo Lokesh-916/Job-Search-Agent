@@ -24,7 +24,7 @@ from job_agent.fx import load_inr_rates
 from job_agent.notify import NotifyError, Telegram
 from job_agent.preflight import check_ollama, check_session, check_vram
 from job_agent.profile import load_profile
-from job_agent.report import build_report, research_columns
+from job_agent.report import build_report, job_flow, research_columns
 from job_agent.settings import Settings
 from job_agent.sources.waas.fetch import fetch_waas
 from job_agent.stages import (
@@ -129,6 +129,7 @@ def build_graph(settings: Settings, store: Store):
         }
         top_picks = outcome["top_picks"]
         outcome["funnel"] = pipeline_funnel(store, report.pending, len(live), top_picks)
+        outcome["flow"] = job_flow(report, settings.scoring.top_pick_threshold)
         return {
             "workbook": str(path),
             "top": live[:5],
