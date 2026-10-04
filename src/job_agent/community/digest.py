@@ -113,9 +113,21 @@ def event_line(e) -> str:
     return f"• {link} · {esc(e['mode'])}, {esc((e['city'] or '')[:30])} · {when}{by}"
 
 
+def distinct(rows: list) -> list:
+    """One line per company + title (multi-location postings repeat otherwise)."""
+    seen, out = set(), []
+    for r in rows:
+        key = (r["company"], r["title"].lower())
+        if key not in seen:
+            seen.add(key)
+            out.append(r)
+    return out
+
+
 def digest_text(jobs: list, interns: list, events: list, today: str, top: int = 8) -> str:
-    new_jobs = [r for r in ranked(jobs) if r["first_seen"][:10] == today] or ranked(jobs)
-    new_interns = [r for r in ranked(interns) if r["first_seen"][:10] == today] or ranked(interns)
+    jobs, interns = distinct(ranked(jobs)), distinct(ranked(interns))
+    new_jobs = [r for r in jobs if r["first_seen"][:10] == today] or jobs
+    new_interns = [r for r in interns if r["first_seen"][:10] == today] or interns
     soon = sorted(events, key=lambda e: e["deadline"] or e["starts"] or "9999")[:5]
     d = date.fromisoformat(today)
     lines = [
