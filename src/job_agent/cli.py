@@ -464,6 +464,19 @@ def ask(question: str = typer.Argument(..., help='e.g. "remote AI jobs above 20 
     console.print(answer, markup=False)
 
 
+@app.command()
+def bot() -> None:
+    """Run the Telegram control bot (on the lab box; deploy/job-agent-bot.service keeps it up)."""
+    settings = get_settings()
+    if not settings.lab.is_local:
+        console.print("Run the bot on the lab box (lab.host: local), not here.")
+        raise typer.Exit(1)
+    from job_agent.bot import build_app
+
+    console.print("Bot polling Telegram. Ctrl+C to stop.")
+    build_app(settings, Path.cwd()).run_polling(drop_pending_updates=True)
+
+
 @app.command("notify-test")
 def notify_test() -> None:
     """Send a test message to the configured Telegram chat."""
