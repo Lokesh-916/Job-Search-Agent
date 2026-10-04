@@ -247,6 +247,100 @@ def logs(lines: int = typer.Option(40, "-n", help="How many lines.")) -> None:
     console.print("\n".join(log.read_text(errors="ignore").splitlines()[-lines:]), markup=False)
 
 
+CHARTS_DIR = Path("docs/metrics")
+
+
+@app.command()
+def stats(runs: int = typer.Option(10, "-n", help="How many recent runs to list.")) -> None:
+    """Per-run metrics table + charts (light/dark PNGs, copied into docs/metrics/)."""
+    lab = get_settings().lab
+    if not lab.is_local:
+        from job_agent.lab import forward, pull_files
+
+        code = forward(lab, sys.argv[1:])
+        if code == 0 and pull_files(lab, "data/charts/*.png", CHARTS_DIR) == 0:
+            console.print(f"[green]Charts copied[/] -> {CHARTS_DIR}")
+        raise typer.Exit(code)
+    import json
+
+    from job_agent.charts import render_all
+    from job_agent.store import Store
+
+    settings = get_settings()
+    with Store(settings.paths.data_dir / "jobs.db") as store:
+        rows = store.runs()[-runs:]
+        made = render_all(store, settings.paths.data_dir / "charts")
+    table = Table("date", "model", "min", "LLM calls", "tok/s", "scored", "top", "failed")
+    for r in rows:
+        s = json.loads(r["summary_json"] or "{}")
+        llm = s.get("llm", {})
+        calls = sum(v["calls"] for v in llm.values())
+        speeds = [v["tokens_per_s"] for v in llm.values() if v.get("tokens_per_s")]
+        out = s.get("outcome", {})
+        table.add_row(
+            s.get("run_date") or r["started_at"][:10], r["model"].split(":", 1)[-1],
+            str(s.get("duration_min", "")), str(calls or ""),
+            f"{sum(speeds) / len(speeds):.0f}" if speeds else "",
+            str(out.get("scored", "")), str(out.get("top_picks", "")),
+            str(sum(v["errors"] for v in llm.values())),
+        )  # fmt: skip
+    console.print(table)
+    console.print(f"{len(made)} charts -> {settings.paths.data_dir / 'charts'}")
+
+
+@app.command()
+def top(
+    n: int = typer.Option(15, "-n", help="How many jobs."),
+    tab: str = typer.Option(
+        None, help="remote_foreign | remote_india | india_onsite | abroad_sponsored"
+    ),
+) -> None:
+    """Best-scoring jobs from the database, no LLM needed."""
+    _on_lab()
+    from job_agent.fx import load_inr_rates
+    from job_agent.report import build_report, research_columns
+    from job_agent.store import Store
+
+    settings = get_settings()
+    with Store(settings.paths.data_dir / "jobs.db") as store:
+        rates = load_inr_rates(settings.paths.data_dir / "fx.json")
+        rep = build_report(store, settings, rates, research_columns(store))
+    jobs = [j for j in rep.jobs if j["Score"] is not None and (not tab or j["_bucket"] == tab)]
+    table = Table("score", "title", "company", "where", "pay (₹ LPA)", "DSA", "verdict", "id")
+    for j in jobs[:n]:
+        table.add_row(
+            f"{j['Tier']} {j['Score']:.0f}", j["Title"][:40], j["Company"][:20],
+            f"{j['Work mode']} · {j['_bucket']}", j["Realistic (₹ LPA)"] or j["Listed (₹ LPA)"],
+            j["DSA risk"], j["Verdict"], j["Job ID"],
+        )  # fmt: skip
+    console.print(table)
+    if rep.pending:
+        console.print(f"[dim]{rep.pending} fetched jobs not processed yet.[/]")
+
+
+@app.command()
+def show(job_id: str = typer.Argument(..., help="Job ID (last column of `top`).")) -> None:
+    """Everything known about one job: facts, judgment, score breakdown, company research."""
+    _on_lab()
+    from job_agent.fx import load_inr_rates
+    from job_agent.report import build_report, research_columns
+    from job_agent.store import Store
+
+    settings = get_settings()
+    with Store(settings.paths.data_dir / "jobs.db") as store:
+        rates = load_inr_rates(settings.paths.data_dir / "fx.json")
+        rep = build_report(store, settings, rates, research_columns(store))
+    job = next((j for j in rep.jobs if j["Job ID"] == job_id), None)
+    if job is None:
+        console.print(f"[red]No processed job {job_id}.[/]")
+        raise typer.Exit(1)
+    table = Table(show_header=False, box=None)
+    for key, value in job.items():
+        if value not in (None, "") and not key.startswith("_"):
+            table.add_row(f"[bold]{key}[/]", str(value))
+    console.print(table)
+
+
 @app.command("notify-test")
 def notify_test() -> None:
     """Send a test message to the configured Telegram chat."""

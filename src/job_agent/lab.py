@@ -43,6 +43,13 @@ def forward(lab: LabConfig, argv: list[str], llm: bool = False) -> int:
     return subprocess.call([ssh_tool(lab.ssh), *tty, lab.host, remote])
 
 
+def pull_files(lab: LabConfig, remote_glob: str, dest: Path) -> int:
+    """Copy files from the lab box (path relative to the repo) into a local folder."""
+    dest.mkdir(parents=True, exist_ok=True)
+    src = f"{lab.host}:{lab.repo.removeprefix('~/')}/{remote_glob}"
+    return subprocess.call([ssh_tool(lab.ssh, "scp"), "-q", src, str(dest)])
+
+
 def start_detached(repo: Path, args: list[str]) -> None:
     """Start a logged pipeline run in the background (survives the SSH session ending)."""
     subprocess.Popen(
