@@ -101,6 +101,9 @@ class Secrets(BaseSettings):
     telegram_bot_token: str | None = None
     telegram_chat_id: str | None = None
     openai_api_key: str | None = None
+    adzuna_app_id: str | None = None
+    adzuna_app_key: str | None = None
+    community_bot_token: str | None = None
 
 
 class Settings(BaseModel):
