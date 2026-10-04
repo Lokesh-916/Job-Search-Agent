@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import httpx
@@ -33,12 +34,14 @@ class Telegram:
             )
         return body["result"]
 
-    def send_message(self, text: str) -> None:
-        self._call(
-            "sendMessage",
-            data={"chat_id": self.chat_id, "text": text, "parse_mode": "HTML",
-                  "disable_web_page_preview": "true"},
-        )  # fmt: skip
+    def send_message(self, text: str, buttons: list[list[tuple[str, str]]] | None = None) -> None:
+        """Send HTML text; `buttons` are rows of (label, callback_data) inline buttons."""
+        data = {"chat_id": self.chat_id, "text": text, "parse_mode": "HTML",
+                "disable_web_page_preview": "true"}  # fmt: skip
+        if buttons:
+            keyboard = [[{"text": t, "callback_data": d} for t, d in row] for row in buttons]
+            data["reply_markup"] = json.dumps({"inline_keyboard": keyboard})
+        self._call("sendMessage", data=data)
 
     def send_document(self, path: Path, caption: str = "") -> None:
         with path.open("rb") as fh:

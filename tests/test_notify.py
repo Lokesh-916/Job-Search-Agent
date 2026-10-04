@@ -34,3 +34,19 @@ def test_error_does_not_leak_token():
     with pytest.raises(NotifyError) as exc:
         tg.send_message("hi")
     assert "T0KEN" not in str(exc.value)
+
+
+def test_send_message_with_buttons():
+    import json
+    from urllib.parse import parse_qs
+
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.update(parse_qs(request.content.decode()))
+        return httpx.Response(200, json={"ok": True, "result": {}})
+
+    tg = Telegram(SECRETS, httpx.Client(transport=httpx.MockTransport(handler)))
+    tg.send_message("hi", buttons=[[("Pitch", "pitch:1"), ("Prep", "prep:1")]])
+    markup = json.loads(seen["reply_markup"][0])
+    assert markup["inline_keyboard"][0][1] == {"text": "Prep", "callback_data": "prep:1"}
