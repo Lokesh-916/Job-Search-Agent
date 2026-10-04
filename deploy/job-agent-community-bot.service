@@ -1,0 +1,19 @@
+# systemd *user* service for the Telegram control bot (no root needed).
+# Install on the lab box:
+#   mkdir -p ~/.config/systemd/user
+#   cp deploy/job-agent-community-bot.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now job-agent-community-bot
+# Keeps running after logout and starts on boot once `loginctl enable-linger $USER` is set.
+[Unit]
+Description=Job-Search-Agent Telegram community (placement feed) bot
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/projects/Job-Search-Agent
+ExecStart=%h/.local/bin/uv run job-agent community bot
+Restart=always
+RestartSec=10
+Environment=PYTHONIOENCODING=utf-8
+
+[Install]
+WantedBy=default.target
