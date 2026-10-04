@@ -65,6 +65,13 @@ browser:
 vram:
   min_free_mib: 11000          # skip the run if the GPU doesn't have this much free
 
+lab:
+  # The GPU box that runs Ollama, the database and the scheduled runs. Commands typed on a
+  # laptop are forwarded there over SSH. On the GPU box itself, set host: local.
+  host: amaloch@100.104.107.17
+  repo: ~/projects/Job-Search-Agent
+  ssh: ssh
+
 paths:
   data_dir: data
   output_dir: workbooks        # daily jobs_YYYY-MM-DD.xlsx files

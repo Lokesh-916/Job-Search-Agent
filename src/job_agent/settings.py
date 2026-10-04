@@ -76,6 +76,18 @@ class VramConfig(BaseModel):
     min_free_mib: int = 11000
 
 
+class LabConfig(BaseModel):
+    """Where the GPU box is. On the GPU box itself, set host to "local"."""
+
+    host: str = "local"  # e.g. "user@100.104.107.17" (SSH target)
+    repo: str = "~/projects/Job-Search-Agent"
+    ssh: str = "ssh"
+
+    @property
+    def is_local(self) -> bool:
+        return self.host == "local"
+
+
 class Paths(BaseModel):
     data_dir: Path = Path("data")
     output_dir: Path = Path("workbooks")
@@ -99,6 +111,7 @@ class Settings(BaseModel):
     research: ResearchConfig = Field(default_factory=ResearchConfig)
     browser: BrowserConfig = Field(default_factory=BrowserConfig)
     vram: VramConfig = Field(default_factory=VramConfig)
+    lab: LabConfig = Field(default_factory=LabConfig)
     paths: Paths = Field(default_factory=Paths)
     secrets: Secrets = Field(default_factory=Secrets)
 
