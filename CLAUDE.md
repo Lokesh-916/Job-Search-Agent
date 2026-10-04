@@ -20,6 +20,9 @@ uv run job-agent fetch                   # WaaS -> data/jobs.db (no LLM)
 uv run job-agent report                  # data/jobs.db -> workbooks/jobs_YYYY-MM-DD.xlsx (no LLM)
 uv run job-agent run --limit 25          # full pipeline (needs Ollama); --wait-gpu-until HH:MM, --skip-fetch
 uv run job-agent notify-test             # Telegram test message
+# Laptop-facing (forwarded over SSH to the lab box when lab.host != local; see README table):
+# now, schedule <0-23> [--once], unschedule, status, logs, stats, top, show <id>,
+# and the LLM helpers ask "<q>", pitch <id>, prep <id>, tailor <id>.
 uv run pytest -q                         # all tests (no GPU/Ollama needed)
 uv run pytest tests/test_scoring.py::test_buckets   # single test
 uv run ruff check . && uv run ruff format .
@@ -34,7 +37,10 @@ Data flow (wired in `graph.py` as a LangGraph graph): `sources/waas` (fetch) →
 - `structured.py`: every LLM call returns a Pydantic schema from `schemas.py` through Ollama JSON-schema constrained decoding, with one self-repair retry that feeds back the validation error.
 - `stages.py`: triage → extract → assess. Each result is cached in `llm_results`, keyed by stage, model and an input hash. Swapping the model or changing a posting, the research or the profile triggers a redo; otherwise the work is skipped. Failures are stored and retried on the next run.
 - Division of labour: the LLM makes the judgments (eligibility, DSA risk, fit, realistic pay). `scoring.py` is pure arithmetic and gating (hard rejects, tab buckets, weighted score from `config.yaml`), so rankings stay comparable across models.
-- `export.py`: one workbook per day. Status, My Notes and Applied On are read back from the latest workbook into the `user_status` table before each new one is written.
+- `export.py`: one workbook per day, delivered via Telegram. Nothing is read back from it (the user decided against notes and sync). Untriaged jobs count as `pending` and stay out of the tabs.
+- `metrics.py`: a `RunMetrics` LangChain callback attached through `metrics.llm_config(stage)` records per-call latency, tokens, load and eval time. `StageTimer`, `event()` and `VramSampler` add stage times, repair and fallback counts and the GPU peak. Runs land in the `runs` and `llm_calls` tables. **Any new LLM call must pass `config=metrics.llm_config(stage)`.** `charts.py` renders light and dark PNGs. The lab PC writes them to `data/charts/` and `job-agent stats` copies them to `docs/metrics/` for the README.
+- `lab.py` + `cli._on_lab()`: on a laptop, commands re-run themselves on the lab box via SSH (`$HOME/.local/bin/uv run job-agent ...`, wrapped in `scripts/with_ollama.sh` for LLM commands). Schedules are user crontab lines tagged `# job-agent:schedule`. `--once` lines carry a date guard. `logs/.running` prevents overlapping runs.
+- `assistant.py`: on-demand helpers (`pitch`, `prep`, `tailor` = structured outputs; `ask` = `create_agent` over DB tools). They are guarded by a VRAM check.
 - WaaS session: `bootstrap()` loads `/companies` headless to get a fresh, per-user Algolia key and re-saves cookies. Job detail pages are fetched with plain httpx using those cookies.
 - Tests use `tests/fakes.py::FakeStructuredLLM`. Never write a test that needs a live Ollama.
 
