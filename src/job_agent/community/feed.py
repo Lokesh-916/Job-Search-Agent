@@ -124,6 +124,8 @@ def refresh(settings: Settings, store: CommunityStore) -> FeedStats:
         if v.kind == "internship" and not p.extra.get("pay"):
             p.extra["pay"] = "Paid (amount not listed)"
         stats.kept[v.kind] += 1
+        if p.description and p.source not in DESCRIBERS:  # describers cache their own text
+            store.save_description(p.key, p.description)
         if store.upsert_posting(p, v, tier, stats.run_at):
             stats.new[v.kind] += 1
     with httpx.Client(timeout=30, follow_redirects=True) as client:

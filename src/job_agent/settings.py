@@ -89,13 +89,16 @@ class LabConfig(BaseModel):
 
 
 class CommunityConfig(BaseModel):
-    """Who may join the batch feed: roll numbers PREFIX + zero-padded number in a range."""
+    """Batch feed: who may join (roll numbers PREFIX + zero-padded number in a range) and
+    whether the morning feed adds LLM notes."""
 
     roll_prefix: str = "123AD"
     roll_digits: int = 4
     roll_min: int = 1
     roll_max: int = 61
     roll_exclude: list[int] = Field(default_factory=lambda: [22, 27, 29, 44])
+    enrich: bool = True  # morning feed adds LLM notes when the GPU is free
+    enrich_limit: int = 300
 
     def roll_allowed(self, roll: str) -> bool:
         roll = roll.strip().upper()

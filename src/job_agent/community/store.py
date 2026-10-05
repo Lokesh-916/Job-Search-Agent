@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -64,6 +65,13 @@ CREATE TABLE IF NOT EXISTS descriptions (
     key        TEXT PRIMARY KEY,       -- posting key; job text fetched once per posting
     text       TEXT NOT NULL,
     fetched_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS notes (
+    key        TEXT PRIMARY KEY,       -- posting key; optional LLM notes (community enrich)
+    model      TEXT NOT NULL,
+    input_hash TEXT NOT NULL,
+    data       TEXT NOT NULL,          -- PostingNotes JSON
+    created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS suggestions (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -146,6 +154,21 @@ class CommunityStore:
         with self.db:
             self.db.execute("INSERT OR REPLACE INTO descriptions VALUES (?, ?, ?)",
                             (key, text, now_iso()))  # fmt: skip
+
+    def notes_fresh(self, key: str, model: str, input_hash: str) -> bool:
+        row = self.db.execute("SELECT 1 FROM notes WHERE key=? AND model=? AND input_hash=?",
+                              (key, model, input_hash)).fetchone()  # fmt: skip
+        return row is not None
+
+    def save_notes(self, key: str, model: str, input_hash: str, data: dict) -> None:
+        with self.db:
+            self.db.execute("INSERT OR REPLACE INTO notes VALUES (?, ?, ?, ?, ?)",
+                            (key, model, input_hash, json.dumps(data, ensure_ascii=False),
+                             now_iso()))  # fmt: skip
+
+    def all_notes(self) -> dict[str, dict]:
+        rows = self.db.execute("SELECT key, data FROM notes").fetchall()
+        return {r["key"]: json.loads(r["data"]) for r in rows}
 
     def set_meta(self, key: str, value: str) -> None:
         with self.db:

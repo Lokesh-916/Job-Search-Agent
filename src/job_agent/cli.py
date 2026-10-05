@@ -515,6 +515,43 @@ def community_refresh() -> None:
     console.print(f"[green]Sheet[/] {path}")
 
 
+@community_app.command("enrich")
+def community_enrich(
+    limit: int = typer.Option(None, help="Read at most this many postings."),
+    daily: bool = typer.Option(
+        False,
+        "--daily",
+        help="Morning mode: obey community.enrich, "
+        "use enrich_limit, and skip quietly when the GPU is busy.",
+    ),
+) -> None:
+    """LLM notes on each posting (fresher-friendly?, batches, CTC, skills). Needs the GPU."""
+    _on_lab(llm=True)
+    import asyncio
+
+    from job_agent.community.enrich import enrich
+    from job_agent.community.service import current, db_path, needs_checking, rebuild
+    from job_agent.community.store import CommunityStore
+
+    settings = get_settings()
+    if daily:
+        if not settings.community.enrich:
+            return
+        limit = limit or settings.community.enrich_limit
+        try:
+            _need_gpu()
+        except typer.Exit:
+            return  # the feed goes out without notes today
+    else:
+        _need_gpu()
+    with CommunityStore(db_path(settings)) as store:
+        jobs, interns, _ = current(store)
+        rows = jobs + interns + needs_checking(store)
+        stats = asyncio.run(enrich(settings, store, rows, limit=limit))
+        console.print(f"notes: {dict(stats)}")
+        console.print(f"[green]Sheet[/] {rebuild(settings, store)}")
+
+
 @community_app.command("send")
 def community_send(
     me_only: bool = typer.Option(False, "--me", help="Send only to the coordinator (preview)."),

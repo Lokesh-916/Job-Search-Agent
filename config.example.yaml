@@ -20,6 +20,7 @@ llm:
     pitch:    { reasoning: false }
     prep:     { reasoning: true }
     tailor:   { reasoning: true }
+    community: { reasoning: false }  # community enrich: short notes per posting
 
 sources:
   waas:
@@ -83,6 +84,8 @@ community:
   roll_min: 1
   roll_max: 61
   roll_exclude: [22, 27, 29, 44]
+  enrich: true          # morning feed: add LLM notes first when the GPU is free (skipped if busy)
+  enrich_limit: 300     # postings read per morning at most (cached, so later days are quick)
 
 paths:
   data_dir: data

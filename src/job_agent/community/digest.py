@@ -18,14 +18,16 @@ JOB_COLUMNS = [  # (header, row key / callable, width)
     ("Company", "company", 20), ("Tier", lambda r, d: TIER.get(r["tier"] or "other", ""), 12),
     ("Role", "title", 42), ("Category", "category", 18), ("Level", "level", 14),
     ("Location", "location", 26), ("Pay (if stated)", "pay", 16), ("Posted", "posted_at", 11),
-    ("Apply", "url", 9), ("Source", "source", 13),
+    ("Apply", "url", 9), ("Eligibility", "eligibility", 22), ("Skills", "skills", 30),
+    ("What you'd do", "summary", 50), ("Source", "source", 13),
 ]  # fmt: skip
 INTERN_COLUMNS = [
     ("New", lambda r, since: "🆕" if r["first_seen"] >= since else "", 5),
     ("Company", "company", 22), ("Tier", lambda r, d: TIER.get(r["tier"] or "other", ""), 12),
     ("Internship", "title", 40), ("Category", "category", 18), ("Location", "location", 24),
     ("Stipend / month", "pay", 20), ("Apply by", "deadline", 11), ("Posted", "posted_at", 11),
-    ("Apply", "url", 9), ("Source", "source", 11),
+    ("Apply", "url", 9), ("Eligibility", "eligibility", 22), ("Skills", "skills", 30),
+    ("What you'd do", "summary", 50), ("Source", "source", 11),
 ]  # fmt: skip
 EVENT_COLUMNS = [
     ("Name", "name", 40), ("Organizer", "organizer", 26), ("Mode", "mode", 10),
@@ -36,7 +38,10 @@ EVENT_COLUMNS = [
 
 
 def _value(row, spec, today: str):
-    return spec(row, today) if callable(spec) else row[spec]
+    if callable(spec):
+        return spec(row, today)
+    # sqlite3.Row has no `in` for keys; notes columns exist only on enriched dict rows
+    return row[spec] if spec in row.keys() else ""  # noqa: SIM118
 
 
 def write_workbook(path: Path, jobs: list, interns: list, events: list, today: str,

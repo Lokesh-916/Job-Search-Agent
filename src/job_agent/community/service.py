@@ -20,19 +20,55 @@ def db_path(settings: Settings) -> Path:
     return settings.paths.data_dir / "community.db"
 
 
+def with_notes(row, notes: dict | None) -> dict | None:
+    """Fold optional LLM notes into a posting; None when the notes rule it out."""
+    r = {**dict(row), "eligibility": "", "skills": "", "summary": ""}
+    if not notes:
+        return r
+    if notes.get("fresher_ok") == "no" and r["kind"] == "job":
+        return None
+    if r["level"] in (CHECK, "Not specified") and notes.get("fresher_ok") == "yes":
+        r["level"] = "Entry level"
+    bits = [b for b in (notes.get("batches"), notes.get("eligibility")) if b]
+    r["eligibility"] = " · ".join(bits)
+    r["skills"] = ", ".join(notes.get("skills") or [])
+    r["summary"] = notes.get("summary") or ""
+    if notes.get("pay") and (not r["pay"] or r["pay"].startswith("Paid")):
+        r["pay"] = notes["pay"]
+    r["deadline"] = r["deadline"] or notes.get("apply_by")
+    return r
+
+
+def _postings(store: CommunityStore) -> list[dict]:
+    since = store.get_meta("last_refresh") or "9999"
+    notes = store.all_notes()
+    rows = (with_notes(r, notes.get(r["key"])) for r in store.live_postings(since))
+    return ranked([r for r in rows if r is not None])
+
+
 def current(store: CommunityStore) -> tuple[list, list, list]:
     """Jobs, internships and upcoming events from the latest refresh."""
-    since = store.get_meta("last_refresh") or "9999"
-    rows = ranked(store.live_postings(since))
+    rows = _postings(store)
     jobs = [r for r in rows if r["kind"] == "job" and r["level"] != CHECK]
     interns = [r for r in rows if r["kind"] == "internship"]
+    since = store.get_meta("last_refresh") or "9999"
     return jobs, interns, store.live_events(since, date.today().isoformat())
 
 
 def needs_checking(store: CommunityStore) -> list:
-    """Roles from sources without job descriptions whose experience bar we can't read."""
-    since = store.get_meta("last_refresh") or "9999"
-    return [r for r in ranked(store.live_postings(since)) if r["level"] == CHECK]
+    """Roles whose experience bar we couldn't read (no job text, no LLM verdict)."""
+    return [r for r in _postings(store) if r["level"] == CHECK]
+
+
+def rebuild(settings: Settings, store: CommunityStore) -> Path:
+    """Rewrite today's sheet from the database (after enrichment), without refetching."""
+    jobs, interns, events = current(store)
+    today = date.today().isoformat()
+    out = settings.paths.data_dir / "community" / f"placement_feed_{today}.xlsx"
+    since = store.get_meta("last_refresh") or today
+    write_workbook(out, jobs, interns, events, today, needs_checking(store), since)
+    store.set_meta("last_workbook", str(out))
+    return out
 
 
 def latest_workbook(store: CommunityStore) -> Path | None:
@@ -43,12 +79,7 @@ def latest_workbook(store: CommunityStore) -> Path | None:
 def refresh_and_build(settings: Settings, store: CommunityStore) -> tuple[FeedStats, Path]:
     stats = refresh(settings, store)
     store.set_meta("last_refresh", stats.run_at)
-    jobs, interns, events = current(store)
-    today = date.today().isoformat()
-    out = settings.paths.data_dir / "community" / f"placement_feed_{today}.xlsx"
-    write_workbook(out, jobs, interns, events, today, needs_checking(store), stats.run_at)
-    store.set_meta("last_workbook", str(out))
-    return stats, out
+    return stats, rebuild(settings, store)
 
 
 def todays_digest(store: CommunityStore) -> str:
