@@ -56,12 +56,16 @@ NON_TECH = re.compile(
 SENIOR = re.compile(
     r"\b(senior|sr\.?|staff|principal|lead|leader|manager|director|head|vp|vice president|architect|"
     r"chief|distinguished|fellow|expert|specialist|intermediate|mid[- ]level)\b|"
-    r"\b(II|III|IV|V|[2-5])\s*$|"
+    r"\b(II|III|IV|V|[2-5])\s*$|(?-i:\b(?:II|III|IV)\b)|"  # "SDE - Test II, Alexa"
     r"(engineer|developer|development|sde|scientist|analyst|associate)[- ]*(II|III|IV|[2-5])\b",
     re.I,
 )
 TITLE_YEARS = re.compile(r"(\d{1,2})\s*\+?\s*(?:-|to)?\s*\d{0,2}\s*\+?\s*y(?:rs?|ears?)?\b", re.I)
-NO_DESCRIPTION_SOURCES = {"workday", "smartrecruiters"}  # listing APIs without job text
+NO_DESCRIPTION_SOURCES = {
+    "workday",
+    "smartrecruiters",
+    "eightfold",
+}  # listing APIs without job text
 ENTRY = re.compile(
     r"new grad|graduate|fresher|campus|entry[- ]level|early career|junior|jr\.?\b|trainee|"
     r"associate (software|engineer|developer|data)|\bsde[- ]*(i|1)\b|"

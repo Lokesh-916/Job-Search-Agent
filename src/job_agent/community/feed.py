@@ -69,11 +69,11 @@ def gather(settings: Settings) -> tuple[list[tuple[Posting, str]], dict[str, str
         out += [(p, res.company.tier) for p in res.postings]
     headers = {"User-Agent": USER_AGENT}
     with httpx.Client(timeout=30, follow_redirects=True, headers=headers) as client:
-        for kind in ("internship", "job"):
-            try:
-                out += [(p, tier_of.get(p.company, "other")) for p in unstop.fetch(kind, client)]
-            except (httpx.HTTPError, ValueError, KeyError) as exc:
-                errors[f"unstop {kind}s"] = short_error(exc)
+        # Unstop jobs only: its internship listings are mostly unpaid or not genuine.
+        try:
+            out += [(p, tier_of.get(p.company, "other")) for p in unstop.fetch("job", client)]
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            errors["unstop jobs"] = short_error(exc)
         sec = settings.secrets
         if sec.adzuna_app_id and sec.adzuna_app_key:
             try:
