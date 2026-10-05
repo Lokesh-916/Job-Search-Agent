@@ -11,7 +11,13 @@ import html
 import re
 from datetime import date
 
-from telegram import BotCommand, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import (
+    BotCommand,
+    BotCommandScopeChat,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Update,
+)
 from telegram.constants import ParseMode
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
@@ -44,6 +50,14 @@ USER_COMMANDS = [
     ("suggest", "Send a suggestion · /suggest add Zoho jobs"),
     ("forget", "Delete my data and leave"),
     ("help", "What I can do"),
+]
+ADMIN_COMMANDS = [
+    ("users", "Admin · everyone and their status"),
+    ("pending", "Admin · approve or reject requests"),
+    ("broadcast", "Admin · message all members"),
+    ("suggestions", "Admin · latest suggestions"),
+    ("refresh", "Admin · fetch all sources now"),
+    ("sendnow", "Admin · send today's feed to everyone"),
 ]
 ADMIN_HELP = (
     "<b>Admin</b>\n/users — everyone and their status\n/pending — approve or reject requests\n"
@@ -293,6 +307,11 @@ def build_app(settings: Settings) -> Application:
 
     async def post_init(app: Application) -> None:
         await app.bot.set_my_commands([BotCommand(c, d) for c, d in USER_COMMANDS])
+        # Only the coordinator's chat shows the admin commands in its menu.
+        await app.bot.set_my_commands(
+            [BotCommand(c, d) for c, d in USER_COMMANDS + ADMIN_COMMANDS],
+            scope=BotCommandScopeChat(owner_id),
+        )
 
     app = Application.builder().token(token).post_init(post_init).build()
     for name, fn in [("start", start), ("join", join), ("forget", forget), ("today", today),
