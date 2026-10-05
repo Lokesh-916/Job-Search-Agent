@@ -49,6 +49,7 @@ def test_kept_roles(title, kind, level, category):
         ("Senior Software Engineer", "Pune", "", "Senior role"),
         ("Software Engineer II", "Pune", "", "Senior role"),
         ("Software Development Engineer - Test II, Alexa", "Pune", "", "Senior role"),
+        ("Research Intern (PhD), Storage Systems for AI", "Hyderabad", "", "PhD / MBA only"),
         ("Enterprise Account Executive", "Mumbai", "", "Not a tech role"),
         ("Software Engineer", "Seattle, WA", "", "Not in India"),
         ("Backend Engineer", "Hyderabad", "You have 3+ years of experience with Go", "Needs 3+ years"),

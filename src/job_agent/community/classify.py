@@ -143,6 +143,7 @@ def stipend_of(text: str) -> str | None:
     return None
 
 
+NOT_UNDERGRAD = re.compile(r"\bph\.?d\b|post[- ]?doc|\bmba\b", re.I)  # roles for other degrees
 JUNK = re.compile(r"test[ _]?job|_test\b|bug bash|do not apply|dummy|sample posting", re.I)
 
 
@@ -155,6 +156,8 @@ def classify(p: Posting) -> Verdict:
     category = category_of(title, p.department)
     if category is None:
         return Verdict(False, "Not a tech role")
+    if NOT_UNDERGRAD.search(title):
+        return Verdict(False, "PhD / MBA only")
     if INTERN.search(f"{title} {p.employment_type}") or p.extra.get("internship"):
         return Verdict(True, "Internship", "internship", "Internship", category)
     if SENIOR.search(title):
