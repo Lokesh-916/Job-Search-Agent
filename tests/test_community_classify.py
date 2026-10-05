@@ -73,6 +73,15 @@ def test_min_years_needs_experience_context():
     assert min_years("We are 5 years old") is None
 
 
+def test_min_years_reads_real_requirement_phrasing():
+    assert min_years("- 10+ year of experience") == 10
+    assert min_years("Innovating for 40 years to create... - 3 years of professional work") == 3
+    assert min_years("- 5+ years in Enterprise Software Applications") == 5
+    assert min_years("Bachelors + 2 years of related experience OR Masters + 0 years") == 2
+    assert min_years("Bachelors (8-12 years) or Master's degree (6-10 years)") == 8
+    assert min_years("We've been innovating fearlessly for 40 years to create solutions") is None
+
+
 def test_stipend():
     assert stipend_of("Stipend: 25,000 per month") == "₹25,000"
     assert stipend_of("₹15000 - 20000/month") == "₹15,000–20,000"

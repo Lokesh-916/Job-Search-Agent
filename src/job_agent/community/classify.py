@@ -76,7 +76,8 @@ ENTRY_DESC = re.compile(
     re.I,
 )
 INTERN = re.compile(r"\bintern(ship)?s?\b|\bco-?op\b|summer analyst|apprentice", re.I)
-YEARS = re.compile(r"(\d{1,2})\s*\+?\s*(?:-|to)?\s*\d{0,2}\s*\+?\s*(?:years|yrs)", re.I)
+YEARS = re.compile(r"(\d{1,2})\s*\+?\s*(?:-|to|–)?\s*\d{0,2}\s*\+?\s*(?:years?|yrs?)\b", re.I)
+EXPERIENCE = re.compile(r"experience|\bexp\b|professional|industry|hands-on|working", re.I)
 STIPEND = re.compile(r"(?:stipend|₹|inr|rs\.?)\s*[:\-]?\s*([\d,]{4,7})(?:\s*(?:-|to)\s*([\d,]{4,7}))?",
                      re.I)  # fmt: skip
 
@@ -106,12 +107,26 @@ def category_of(title: str, department: str = "") -> str | None:
 
 
 def min_years(description: str) -> int | None:
-    """Smallest 'N years' requirement mentioned near experience wording, if any."""
-    found = []
+    """Years of experience a bachelor's graduate needs, if the text says.
+
+    Counts "N years" near experience wording or followed by "of"/"in" ("5+ years in
+    Java"), ignores company age ("for 40 years to create"). When the bar depends on the
+    degree ("Bachelors + 2 years or Masters + 0 years"), the bachelor's figure wins.
+    """
+    found, bachelor = [], []
     for m in YEARS.finditer(description or ""):
+        n = int(m.group(1))
         window = description[max(0, m.start() - 60) : m.end() + 40].lower()
-        if "experience" in window or "exp" in window:
-            found.append(int(m.group(1)))
+        after = description[m.end() : m.end() + 4].lower()
+        for_bachelor = "bachelor" in description[max(0, m.start() - 40) : m.start()].lower()
+        if n > 15 or not (for_bachelor or EXPERIENCE.search(window)
+                          or after.startswith((" of", " in"))):  # fmt: skip
+            continue
+        found.append(n)
+        if for_bachelor:
+            bachelor.append(n)
+    if bachelor:
+        return min(bachelor)
     return min(found) if found else None
 
 
