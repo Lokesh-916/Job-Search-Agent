@@ -148,3 +148,17 @@ def test_todays_picks_are_stable_and_rotate(tmp_path):
         assert first == [r["key"] for r in todays_picks(store, rows, [], "2026-10-05")]
         nxt = [r["key"] for r in todays_picks(store, rows, [], "2026-10-06")]
         assert len(first) == 3 and not set(first) & set(nxt)
+
+
+def test_message_fits_telegram_and_keeps_its_footer():
+    from job_agent.community.digest import short_place
+
+    rows = [big(str(i), f"Company {i}", first_seen="2026-10-05T09:00") for i in range(40)]
+    for r in rows:
+        r["url"] = "https://careers.example.com/" + "x" * 300
+    text = digest_text(rows, rows[:10], [], "2026-10-05", new_since="2026-10-05T08:00",
+                       picks=rows[:3])  # fmt: skip
+    assert len(text) <= 4000 and text.endswith("report a bad listing.")
+    assert text.count("<a ") == text.count("</a>")
+    assert short_place("India, Telangana, Hyderabad") == "Hyderabad"
+    assert short_place("Bangalore, India; Hyderabad, Telangana, India") == "Bangalore +1"

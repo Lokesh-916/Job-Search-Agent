@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import re
 from collections import Counter
 from datetime import date
 from pathlib import Path
@@ -105,19 +106,64 @@ def write_workbook(path: Path, jobs: list, interns: list, events: list, today: s
     return path
 
 
+def short_place(location: str) -> str:
+    """'Bangalore, India; Hyderabad, Telangana, India' -> 'Bangalore +1'."""
+    places = [p.strip() for p in re.split(r";|\|", location or "") if p.strip()]
+    if not places:
+        return ""
+    parts = [p.strip() for p in places[0].split(",") if p.strip()]
+    # "India, Telangana, Hyderabad" (country first) vs "Hyderabad, Telangana, India"
+    city = parts[-1] if parts[0].lower() == "india" and len(parts) > 1 else parts[0]
+    more = f" +{len(places) - 1}" if len(places) > 1 else ""
+    return f"{city[:28]}{more}"
+
+
+def day(iso: str | None) -> str:
+    if not iso:
+        return ""
+    d = date.fromisoformat(iso[:10])
+    return f"{d.day} {d:%b}"
+
+
 def job_line(r, pay_label: str = "") -> str:
     esc = html.escape
-    pay = f" · {esc(r['pay'])}" if r["pay"] and pay_label else ""
-    link = f'<a href="{esc(r["url"])}">{esc(r["title"][:70])}</a>'
-    return f"• <b>{esc(r['company'])}</b> · {link} · {esc(r['location'][:40])}{pay}"
+    stated = r["pay"] and not r["pay"].startswith("Paid (")  # skip "amount not listed"
+    pay = f" · {esc(r['pay'])}" if stated and pay_label else ""
+    link = f'<a href="{esc(r["url"])}">{esc(r["title"][:60])}</a>'
+    return f"• <b>{esc(r['company'])}</b> · {link} · {esc(short_place(r['location']))}{pay}"
 
 
 def event_line(e) -> str:
-    when = e["starts"] or ""
-    by = f" · register by {e['deadline']}" if e["deadline"] else ""
     esc = html.escape
-    link = f'<a href="{esc(e["url"])}">{esc(e["name"][:60])}</a>'
-    return f"• {link} · {esc(e['mode'])}, {esc((e['city'] or '')[:30])} · {when}{by}"
+    link = f'<a href="{esc(e["url"])}">{esc(e["name"][:55])}</a>'
+    where = (
+        e["mode"]
+        if e["mode"] == "Online"
+        else ", ".join(x for x in (e["mode"], (e["city"] or "").split(",")[0][:24]) if x)
+    )
+    when = f"starts {day(e['starts'])}" if e["starts"] else ""
+    by = f"register by {day(e['deadline'])}" if e["deadline"] else ""
+    return " · ".join(x for x in (f"• {link}", esc(where), when, by) if x)
+
+
+EVENT_SOURCES = ("hack2skill", "devfolio", "devpost", "gdg", "unstop")  # most reputable first
+
+
+def featured_events(events: list, today: str, n: int = 5, per_source: int = 2) -> list:
+    """Open events for the message: big platforms first, a few per site, soonest first."""
+    soon = upcoming(events, today)
+    soon.sort(key=lambda e: EVENT_SOURCES.index(e["source"]) if e["source"] in EVENT_SOURCES
+              else len(EVENT_SOURCES))  # fmt: skip
+    counts: dict[str, int] = {}
+    out = []
+    for e in soon:
+        counts[e["source"]] = counts.get(e["source"], 0) + 1
+        if counts[e["source"]] <= per_source:
+            out.append(e)
+    return sorted(out[:n], key=lambda e: e["deadline"] or e["starts"] or "9999")
+
+
+MAX_MESSAGE = 4000  # Telegram's limit is 4096; never cut the HTML mid-tag
 
 
 def distinct(rows: list) -> list:
@@ -187,27 +233,30 @@ def digest_text(jobs: list, interns: list, events: list, today: str, top: int = 
     )
     fresh = sum(r["first_seen"] >= new_since for r in jobs + interns)
     big = sum(r["tier"] in BIG_TIERS for r in jobs + interns)
-    soon = upcoming(events, today)[:5]
     d = date.fromisoformat(today)
-    lines = [
+    head = [
         f"🗞️ <b>Placement Feed · {d.day} {d:%b}</b>",
-        f"{len(jobs)} jobs · {len(interns)} paid internships · {len(events)} events, "
-        f"all in India · {big} at Big Tech / MNCs · {fresh} new today",
+        f"{len(jobs)} jobs · {len(interns)} paid internships · {len(events)} events · all in India",
+        f"🏢 {big} at Big Tech / MNCs · 🆕 {fresh} new today",
     ]
-    if picks:
-        lines += ["", "🏛️ <b>Big names today</b>", *[pick_line(r) for r in picks]]
-    lines += [
-        "",
-        "💼 <b>Jobs</b>",
-        *[job_line(r) for r in new_jobs[:top]],
-        "",
-        "🎓 <b>Internships</b>",
-        *[job_line(r, "pay") for r in new_interns[:5]],
-        "",
-        "🏆 <b>Hackathons & events</b>",
-        *[event_line(e) for e in soon],
-        "",
-        "📎 Full list in the attached sheet (filter by company, city or category).",
-        "/suggest a company or report a bad listing.",
-    ]
-    return "\n".join(lines)[:4000]
+    sections = {  # title -> lines; trimmed from the longest until the message fits
+        "🏛️ <b>Big names today</b>": [pick_line(r) for r in picks],
+        "💼 <b>Jobs</b>": [job_line(r) for r in new_jobs[:top]],
+        "🎓 <b>Internships</b>": [job_line(r, "pay") for r in new_interns[:5]],
+        "🏆 <b>Hackathons & events</b>": [event_line(e) for e in featured_events(events, today)],
+    }
+    foot = ["", "📎 The attached sheet has the full list: filter by company, city or category.",
+            "💡 /suggest a company or report a bad listing."]  # fmt: skip
+
+    def render() -> str:
+        body = [x for title, items in sections.items() if items for x in ("", title, *items)]
+        return "\n".join(head + body + foot)
+
+    text = render()
+    while len(text) > MAX_MESSAGE:
+        longest = max(sections.values(), key=len)
+        if len(longest) <= 1:
+            break
+        longest.pop()
+        text = render()
+    return text
