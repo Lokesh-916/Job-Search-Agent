@@ -7,6 +7,7 @@ job text; `describe()` fetches one position's description on demand.
 
 from __future__ import annotations
 
+import time
 from datetime import UTC, datetime
 
 import httpx
@@ -17,6 +18,8 @@ from job_agent.text import html_to_text
 PAGE = 10  # fixed by the API
 MAX_JOBS = 400
 HEADERS = {"Accept": "application/json"}
+PAUSE_S = 0.4  # between pages: Microsoft answers 429 to fast paging
+BACKOFF_S = (5, 15, 45)
 
 
 def _date(ts) -> str | None:
@@ -34,14 +37,25 @@ def _place(text: str) -> str:
     return ", ".join(dict.fromkeys(parts))
 
 
+def _get(client: httpx.Client, url: str, params: dict, sleep=time.sleep) -> httpx.Response:
+    """GET with a short pause between pages and backoff when the site says slow down."""
+    for wait in (*BACKOFF_S, None):
+        sleep(PAUSE_S)
+        resp = client.get(url, headers=HEADERS, params=params)
+        if resp.status_code != 429 or wait is None:
+            resp.raise_for_status()
+            return resp
+        sleep(wait)
+    raise AssertionError("unreachable")
+
+
 def fetch(company: Company, client: httpx.Client) -> list[Posting]:
     host, domain = company.site, company.slug
     out: list[Posting] = []
     for start in range(0, MAX_JOBS, PAGE):
-        resp = client.get(f"https://{host}/api/pcsx/search", headers=HEADERS,
-                          params={"domain": domain, "query": "", "location": "India",
-                                  "start": start, "sort_by": "timestamp"})  # fmt: skip
-        resp.raise_for_status()
+        resp = _get(client, f"https://{host}/api/pcsx/search",
+                    {"domain": domain, "query": "", "location": "India", "start": start,
+                     "sort_by": "timestamp"})  # fmt: skip
         data = resp.json().get("data") or {}
         positions = data.get("positions") or []
         for p in positions:
