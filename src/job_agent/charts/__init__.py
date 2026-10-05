@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from job_agent.charts.market import calendar_chart, market_chart
+from job_agent.charts.picks import picks_chart
 from job_agent.charts.run import (
     flow_chart,
     hero_chart,
@@ -30,8 +31,16 @@ def _history(store: Store) -> list[dict]:
     return rows
 
 
-def render_all(store: Store, out_dir: Path) -> list[Path]:
-    """Every chart that has data, in light and dark variants. Returns the files written."""
+def render_all(
+    store: Store,
+    out_dir: Path,
+    jobs: list[dict] | None = None,
+    pay_floor: float = 9,
+    threshold: float = 75,
+) -> list[Path]:
+    """Every chart that has data, in light and dark variants. Returns the files written.
+
+    `jobs`: scored report records, for the fit × pay chart."""
     made: list[Path] = []
     hits = [json.loads(r["hit_json"] or "{}") for r in store.open_jobs()]
     runs = store.runs()
@@ -46,6 +55,7 @@ def render_all(store: Store, out_dir: Path) -> list[Path]:
         charts = [
             calendar_chart(theme, hits, out_dir / f"calendar{sfx}"),
             market_chart(theme, hits, out_dir / f"market{sfx}"),
+            picks_chart(theme, jobs or [], out_dir / f"picks{sfx}", pay_floor, threshold),
         ]
         if latest:
             charts += [

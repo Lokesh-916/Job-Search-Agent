@@ -278,13 +278,19 @@ def stats(runs: int = typer.Option(10, "-n", help="How many recent runs to list.
     import json
 
     from job_agent.charts import render_all
+    from job_agent.fx import load_inr_rates
+    from job_agent.report import build_report
     from job_agent.store import Store
 
     settings = get_settings()
     with Store(settings.paths.data_dir / "jobs.db") as store:
         rows = store.runs()[-runs:]
         call_counts = {r["run_id"]: len(store.llm_calls(r["run_id"])) for r in rows}
-        made = render_all(store, settings.paths.data_dir / "charts")
+        rates = load_inr_rates(settings.paths.data_dir / "fx.json")
+        jobs = build_report(store, settings, rates).jobs
+        made = render_all(store, settings.paths.data_dir / "charts", jobs,
+                          settings.preferences.salary_floor_lpa,
+                          settings.scoring.top_pick_threshold)  # fmt: skip
     table = Table("date", "model", "min", "LLM calls", "tok/s", "scored", "top", "failed")
     for r in rows:
         s = json.loads(r["summary_json"] or "{}")

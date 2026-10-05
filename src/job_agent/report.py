@@ -144,7 +144,20 @@ def job_record(
         "Job ID": row["job_id"],
         "_bucket": scored.bucket,
         "_company_id": row["company_id"],
+        "_pay_lpa": _midpoint(
+            (a.realistic_salary_lpa_min, a.realistic_salary_lpa_max) if a else (None, None),
+            scored.listed_lpa,
+        ),
     }
+
+
+def _midpoint(*ranges: tuple[float | None, float | None]) -> float | None:
+    """Middle of the first range that has a number (realistic pay before listed pay)."""
+    for lo, hi in ranges:
+        nums = [x for x in (lo, hi) if x is not None]
+        if nums:
+            return sum(nums) / len(nums)
+    return None
 
 
 def company_record(company: dict, research: dict[str, Any] | None, open_fit: int) -> dict:

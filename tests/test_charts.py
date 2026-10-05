@@ -42,3 +42,16 @@ def test_render_all_light_and_dark(tmp_path):
         assert "history-dark.png" not in names  # needs two runs
         s.save_run("r2", "2026-10-05T23:05:00+00:00", "ollama:qwen3:14b", {}, SUMMARY, calls)
         assert any(p.name == "history-light.png" for p in render_all(s, tmp_path / "charts"))
+
+
+def test_picks_chart_needs_scored_jobs_with_pay(tmp_path):
+    from job_agent.charts.picks import picks_chart
+    from job_agent.charts.style import THEMES
+
+    buckets = ["remote_india", "remote_foreign", "india_onsite", "abroad_sponsored", "needs_review"]
+    jobs = [{"_pay_lpa": 6 + i * 2.5, "Score": 40 + i * 5, "_bucket": buckets[i % 5],
+             "Company": f"Co {i}"} for i in range(12)]  # fmt: skip
+    jobs.append({"_pay_lpa": 30, "Score": 99, "_bucket": "rejected", "Company": "Gone"})
+    for theme in THEMES:
+        assert picks_chart(theme, jobs, tmp_path / f"picks-{theme.name}.png").exists()
+    assert picks_chart(THEMES[0], jobs[:2], tmp_path / "none.png") is None
