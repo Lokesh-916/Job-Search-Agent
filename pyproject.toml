@@ -1,7 +1,7 @@
 [project]
 name = "job-agent"
 version = "0.1.0"
-description = "Local-LLM agent that scouts fresher-friendly startup jobs into a daily Excel workbook"
+description = "Daily placement feed for a college batch: tech jobs, paid internships, hackathons and events in India, on Telegram"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [

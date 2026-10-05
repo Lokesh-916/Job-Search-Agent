@@ -1,133 +1,94 @@
-# 🕵️ Job-Search-Agent
+# 🎓 Placement Feed
 
-> A local-LLM agent that hunts YC startup jobs so I don't have to doom-scroll job boards.
+> One Telegram message every morning with the tech jobs, paid internships, hackathons and tech events our batch should know about.
 
-Every day it pulls new-grad roles from [Work at a Startup](https://www.workatastartup.com), digs into each company, judges every job against my profile with an LLM running on my own GPU, and sends one tidy Excel workbook to Telegram. I still apply myself. This is a scout, not an auto-apply bot.
+Placement season means checking a dozen career pages, Unstop, Devfolio and LinkedIn every day, and still missing things. This bot does the checking for the whole batch. Every morning at 8 it reads the careers boards of 70 companies and a handful of platforms, keeps what is **in India, technical and open to freshers**, and sends everyone the same short message plus an Excel sheet with the full list.
 
-## 🎯 What it optimizes for
+It's free, it runs on our lab machine, and there's no personalisation or ranking of people. Everyone gets the same curated list.
 
-| | Signal |
+## 📬 What arrives every morning
+
+| | |
 |---|---|
-| 🏠 | Remote from India first, then Hyderabad › Bengaluru › rest of India |
-| 💰 | Realistic pay in ₹ LPA (dollar salaries converted at live rates) |
-| 🧠 | Practical interviews over LeetCode marathons |
-| 🤖 | Building with AI: agents, LLM apps, AI products |
-| 🎓 | Roles open to new grads |
+| 💼 **Jobs** | Entry-level tech roles in India: SWE, full stack, backend, frontend, mobile, data, ML/AI, DevOps, security, embedded, QA |
+| 🎓 **Paid internships** | Only internships that pay. Marketplace listings need a stated stipend of at least ₹5,000/month |
+| 🏆 **Hackathons** | Open hackathons, online or in India, with dates, deadline and prizes |
+| 🎤 **Tech events** | Meetups, workshops and study jams, including GDG chapters at Indian campuses |
+| 📊 **The sheet** | Everything above in one workbook, with a 🆕 mark on what appeared since yesterday |
 
-## 🧩 How it works
+The message itself stays short: what's new today, a few highlights per category, and upcoming deadlines. The sheet has the rest.
+
+## 🏢 Where it looks
+
+| | Sources |
+|---|---|
+| 🏛️ Big Tech and MNCs | Amazon, NVIDIA, Adobe, Intel, Cisco, Salesforce, Micron, Autodesk, PayPal, Mastercard, Visa, Morgan Stanley, Deutsche Bank, Bosch, Philips… |
+| 🦄 Unicorns and startups | Swiggy, CRED, Meesho, Groww, Paytm, Pocket FM, Stripe, Databricks, OpenAI, Notion, Canva, Sarvam AI, FamPay… |
+| 🌐 Everyone else | Adzuna India search, Unstop jobs and internships |
+| 🏆 Events | Devfolio, Unstop, Devpost, Google Developer Groups |
+
+Every company in [`config/companies.yaml`](config/companies.yaml) was checked to have a live public job board with openings in India. Adding a company is one line, so if yours is missing, send `/suggest`.
+
+## 🧹 How the list is curated
 
 ```
-fetch ─▶ triage ─▶ extract ─▶ research ─▶ assess ─▶ score ─▶ 📊 workbook ─▶ 📲 Telegram
+70 career boards + platforms ─▶ India only ─▶ tech roles only ─▶ freshers only ─▶ 📲 one message + sheet
+        ~12,000 postings                                                          ~300 jobs · ~35 internships
 ```
 
-- **Fetch:** reads WaaS's own search index and job pages. Fast, structured, no HTML guessing.
-- **Triage / extract / assess:** typed JSON from a local LLM, with self-repair when the model slips.
-- **Research:** a small tool-using agent checks reviews, interview stories, salaries and funding, and drafts a founder note.
-- **Score:** plain arithmetic on the LLM's judgments, so rankings stay comparable across models.
-- **Cached everywhere:** only new or changed postings cost GPU time.
+- **India only:** any Indian city, or remote from India. Multi-city postings count if one city is in India.
+- **Tech only:** sales, HR, finance, operations and support roles are dropped.
+- **Freshers only:** senior, lead, manager and "II/III" titles are dropped, along with anything asking for 2+ years. The bot reads the job description, not just the title. Where a degree changes the bar ("Bachelor's + 2 years or Master's + 0"), the Bachelor's figure counts.
+- **No junk:** test postings and unpaid marketplace internships are skipped.
+- **LLM notes:** when the lab GPU is free, a local LLM reads each posting and notes whether freshers really qualify, which batches and branches are eligible, the CTC, the deadline and the key skills. The model runs on our own machine, so nothing is sent to an AI service.
+- **Honest about gaps:** if a big company's posting doesn't say what experience it needs, the role goes to a separate *Check experience* tab instead of being guessed.
 
-**Stack:** LangGraph · Ollama (`qwen3:14b` by default, one config line to swap) · Playwright · SQLite · xlsxwriter
+## 🤖 Using the bot
 
-## ⌨️ Commands
-
-Run these from the laptop. They're forwarded over SSH to the GPU box, where the data and the model live. Install once with `uv tool install --editable .` to get a global `job-agent` command that works from any folder.
-
-**Runs**
-
-| Command | What it does |
-|---|---|
-| `job-agent now` | Start a run right away (`--limit 25` for a quick one, `--wait-hours 3` if the GPU is busy) |
-| `job-agent schedule 3` | Run every day at 03:00 (any hour 0–23; `--once` for just the next one) |
-| `job-agent unschedule` | Remove all scheduled runs |
-| `job-agent status` | GPU headroom, running and scheduled runs, last run's numbers |
-| `job-agent logs` | Tail of the latest run log |
-
-**Browse results (no GPU needed)**
+1. Open the batch bot on Telegram and press **Start**.
+2. Send `/join <your roll number>`.
+3. Once the coordinator approves you, the morning message starts arriving.
 
 | Command | What it does |
 |---|---|
-| `job-agent top` | Best-scoring jobs (`--tab remote_india`, `-n 30`) |
-| `job-agent show <id>` | Everything known about one job: facts, judgment, pay, research |
-| `job-agent stats` | Per-run metrics table, and refreshes the charts below |
+| `/today` | Today's message and the full sheet |
+| `/jobs` | Latest jobs |
+| `/internships` | Paid internships |
+| `/events` | Hackathons and tech events |
+| `/suggest <text>` | Missing company, wrong listing, any idea (`/suggest add Zoho jobs`) |
+| `/forget` | Delete your data and leave |
 
-**🤖 LLM helpers (use the GPU when it's free)**
+**Privacy:** the bot stores your Telegram name, username and roll number, only to manage who receives the feed. `/forget` deletes all of it. Only roll numbers from the batch can join, and the coordinator approves each request.
 
-| Command | What it does |
-|---|---|
-| `job-agent ask "remote AI jobs above 20 LPA?"` | An agent searches your job database and answers |
-| `job-agent pitch <id>` | Founder message, cover note and subject line in your voice |
-| `job-agent prep <id>` | Interview prep: likely rounds, topics, questions with answer pointers |
-| `job-agent tailor <id>` | Which projects to lead the resume with, rewritten bullets, gaps |
+## 🛠️ Run it for your own batch
 
-Add `--telegram` to any helper to get the result on your phone.
-
-**Setup and maintenance:** `login` (WaaS sign-in), `doctor` (preflight checks), `fetch`, `report`, `run`, `notify-test`.
-
-## 📈 How it performs
-
-Numbers from real runs on an RTX 2000 Ada (16 GB) with `qwen3:14b`. `job-agent stats` refreshes these charts, which follow GitHub's light or dark theme.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/hero-dark.png">
-  <img alt="Run report: KPIs and a timeline where every sliver is one LLM call" src="docs/metrics/hero-light.png">
-</picture>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/flow-dark.png">
-  <img alt="Where the jobs go: a flow from fetched jobs to top picks, with drop-out reasons" src="docs/metrics/flow-light.png">
-</picture>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/latency-dark.png">
-  <img alt="LLM call latency per stage as ridgelines on a log scale" src="docs/metrics/latency-light.png" width="80%">
-</picture>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/picks-dark.png">
-  <img alt="Fit by pay: every scored job as a dot, coloured by remote, India office or abroad" src="docs/metrics/picks-light.png">
-</picture>
-
-### 🗺️ The market it sees
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/market-dark.png">
-  <img alt="Role by work arrangement heatmap" src="docs/metrics/market-light.png" width="70%">
-</picture>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/calendar-dark.png">
-  <img alt="Calendar of postings per day" src="docs/metrics/calendar-light.png">
-</picture>
-
-Each run records per-stage time, per-call latency, tokens/sec, repair and failure counts, research tool calls and GPU memory peak, so models and prompts can be compared run by run.
-
-## 👥 Placement Feed for the batch
-
-A second bot gives my classmates one message every morning with **tech jobs, paid internships, hackathons and tech events in India**, plus a sheet with everything. There's no profile matching: everyone gets the same curated list.
-
-| | Where it comes from |
-|---|---|
-| 🏛️ Big Tech and MNCs | Amazon, NVIDIA, Adobe, Intel, Cisco, Micron, Mastercard, Visa, Deutsche Bank, Bosch… (Workday, SmartRecruiters, amazon.jobs) |
-| 🦄 Unicorns and startups | Swiggy, CRED, Meesho, Groww, Paytm, Stripe, Databricks, OpenAI, Sarvam AI, FamPay… (Greenhouse, Lever, Ashby) |
-| 🌐 Everyone else | Adzuna India search, Unstop fresher jobs |
-| 🎓 Internships | The companies above, plus Unstop internships with a stated stipend |
-| 🏆 Hackathons and events | Devfolio, Unstop, Devpost (online or in India), Google Developer Groups at Indian campuses |
-
-Curation is rule-based: Indian locations only, technical roles only, senior and "2+ years" roles dropped, test postings skipped. When the GPU is free, a local LLM also reads each posting and notes whether freshers really qualify, which batches and branches, the CTC, the deadline and the key skills. The 70 companies are in [`config/companies.yaml`](config/companies.yaml), and adding one is a single line.
-
-**Members:** `/join <roll no>` → the coordinator approves → `/today` · `/jobs` · `/internships` · `/events` · `/suggest` · `/forget`
-**Coordinator:** `/users` · `/pending` · `/broadcast` · `/suggestions` · `/refresh` · `/sendnow`
-**CLI:** `job-agent community refresh | enrich | send --me | daily | users | bot`
-
-## ⚡ Set up your own
+Python 3.12 and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync
-cp config.example.yaml config.yaml && cp profile.example.yaml profile.yaml   # make them yours
-cp .env.example .env                                                          # Telegram bot token + chat id
-uv run job-agent login      # sign in to WaaS once
-uv run job-agent doctor     # GPU, Ollama and session checks
-uv run job-agent now --limit 25
+cp config.example.yaml config.yaml    # set community: roll_prefix / roll_min / roll_max / roll_exclude
+cp .env.example .env                  # COMMUNITY_BOT_TOKEN (from @BotFather), TELEGRAM_CHAT_ID (the coordinator),
+                                      # optional ADZUNA_APP_ID / ADZUNA_APP_KEY (free at developer.adzuna.com)
+uv run job-agent community refresh    # fetch everything and build today's sheet (no messages sent)
+uv run job-agent community send --me  # preview the message in the coordinator's chat
 ```
 
-On the GPU box, set `lab.host: local` in its `config.yaml`. Everywhere else, point `lab.host` at it.
+Then run it for real:
+
+- **The bot:** `deploy/job-agent-community-bot.service` is a systemd user service that runs `job-agent community bot`.
+- **The morning send:** a crontab line, `0 8 * * * /path/to/scripts/community_daily.sh`. It refreshes, adds LLM notes if a GPU is free, then sends.
+
+| Coordinator command | What it does |
+|---|---|
+| `job-agent community refresh` | Fetch every source, rebuild the sheet |
+| `job-agent community enrich` | Add LLM notes (needs [Ollama](https://ollama.com); the model is set in `config.yaml`) |
+| `job-agent community send` | Send today's feed (`--me` to preview) |
+| `job-agent community users` | Who joined and their status |
+
+The coordinator's chat also gets admin commands in the bot: `/pending` (approve or reject), `/users`, `/broadcast`, `/suggestions`, `/refresh`, `/sendnow`.
+
+**Stack:** Python · httpx · python-telegram-bot · SQLite · xlsxwriter · LangChain + Ollama for the optional notes. Sources are the public JSON behind Greenhouse, Lever, Ashby, SmartRecruiters, Workday and amazon.jobs, the Adzuna API, and the Unstop, Devfolio, Devpost and GDG listings.
+
+---
+
+Made for the AI&DS batch of 2027 at IIITDM Kurnool. If it helped you land something, tell me. 🙌
