@@ -82,6 +82,11 @@ Numbers from real runs on an RTX 2000 Ada (16 GB) with `qwen3:14b`. `job-agent s
   <img alt="LLM call latency per stage as ridgelines on a log scale" src="docs/metrics/latency-light.png" width="80%">
 </picture>
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/metrics/picks-dark.png">
+  <img alt="Fit by pay: every scored job as a dot, coloured by remote, India office or abroad" src="docs/metrics/picks-light.png">
+</picture>
+
 ### 🗺️ The market it sees
 
 <picture>
@@ -108,11 +113,11 @@ A second bot gives my classmates one message every morning with **tech jobs, pai
 | 🎓 Internships | The companies above, plus Unstop internships with a stated stipend |
 | 🏆 Hackathons and events | Devfolio, Unstop, Devpost (online or in India), Google Developer Groups at Indian campuses |
 
-Curation is rule-based: Indian locations only, technical roles only, senior and "2+ years" roles dropped, test postings skipped. The 70 companies are in [`config/companies.yaml`](config/companies.yaml), and adding one is a single line.
+Curation is rule-based: Indian locations only, technical roles only, senior and "2+ years" roles dropped, test postings skipped. When the GPU is free, a local LLM also reads each posting and notes whether freshers really qualify, which batches and branches, the CTC, the deadline and the key skills. The 70 companies are in [`config/companies.yaml`](config/companies.yaml), and adding one is a single line.
 
 **Members:** `/join <roll no>` → the coordinator approves → `/today` · `/jobs` · `/internships` · `/events` · `/suggest` · `/forget`
 **Coordinator:** `/users` · `/pending` · `/broadcast` · `/suggestions` · `/refresh` · `/sendnow`
-**CLI:** `job-agent community refresh | send --me | daily | users | bot`
+**CLI:** `job-agent community refresh | enrich | send --me | daily | users | bot`
 
 ## ⚡ Set up your own
 
