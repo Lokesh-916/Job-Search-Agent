@@ -1,12 +1,19 @@
 # Curated companies for the community feed (India jobs only). Every entry was checked to
 # have a live public job board with India openings. Add more freely.
-#   ats: greenhouse | lever | ashby | smartrecruiters | workday | amazon
+#   ats: greenhouse | lever | ashby | smartrecruiters | workday | amazon | eightfold
 #   workday entries also need `site: <cluster>/<site>` (from the careers page URL).
+#   eightfold entries: slug = the company's domain, site = the careers host.
 # Companies without a public board (Flipkart, Zomato, Razorpay, Google, Microsoft...) are
 # covered through Adzuna searches instead.
 
 big_tech:
   - { name: Amazon, ats: amazon, slug: amazon }
+  - { name: Microsoft, ats: eightfold, slug: microsoft.com, site: apply.careers.microsoft.com }
+  - { name: Qualcomm, ats: eightfold, slug: qualcomm.com, site: careers.qualcomm.com }
+  - { name: Cadence, ats: workday, slug: cadence, site: wd1/External_Careers }
+  - { name: HPE, ats: workday, slug: hpe, site: wd5/Jobsathpe }
+  - { name: Marvell, ats: workday, slug: marvell, site: wd1/MarvellCareers }
+  - { name: Zscaler, ats: greenhouse, slug: zscaler }
   - { name: NVIDIA, ats: workday, slug: nvidia, site: wd5/NVIDIAExternalCareerSite }
   - { name: Adobe, ats: workday, slug: adobe, site: wd5/external_experienced }
   - { name: Salesforce, ats: workday, slug: salesforce, site: wd12/External_Career_Site }
@@ -39,6 +46,22 @@ big_tech:
   - { name: Airbnb, ats: greenhouse, slug: airbnb }
 
 mnc:
+  - { name: Accenture, ats: workday, slug: accenture, site: wd103/AccentureCareers }
+  - { name: Vodafone (VOIS), ats: eightfold, slug: vodafone.com, site: jobs.vodafone.com }
+  - { name: NXP, ats: workday, slug: nxp, site: wd3/careers }
+  - { name: KLA, ats: workday, slug: kla, site: wd1/Search }
+  - { name: Applied Materials, ats: workday, slug: amat, site: wd1/External }
+  - { name: State Street, ats: workday, slug: statestreet, site: wd1/Global }
+  - { name: LSEG, ats: workday, slug: lseg, site: wd3/Careers }
+  - { name: Lowe's, ats: workday, slug: lowes, site: wd5/LWS_External_CS }
+  - { name: BlackRock, ats: workday, slug: blackrock, site: wd1/BlackRock_Professional }
+  - { name: PwC, ats: workday, slug: pwc, site: wd3/Global_Experienced_Careers }
+  - { name: PTC, ats: workday, slug: ptc, site: wd1/PTC }
+  - { name: Equinix, ats: workday, slug: equinix, site: wd1/External }
+  - { name: athenahealth, ats: workday, slug: athenahealth, site: wd1/External }
+  - { name: AstraZeneca, ats: workday, slug: astrazeneca, site: wd3/Careers }
+  - { name: Nike, ats: workday, slug: nike, site: wd1/nke }
+  - { name: Toast, ats: greenhouse, slug: toast }
   - { name: Bosch, ats: smartrecruiters, slug: boschgroup }
   - { name: PayPal, ats: workday, slug: paypal, site: wd1/jobs }
   - { name: Mastercard, ats: workday, slug: mastercard, site: wd1/CorporateCareers }
@@ -76,9 +99,12 @@ unicorn:
   - { name: Pocket FM, ats: lever, slug: pocketfm }
   - { name: Unacademy, ats: smartrecruiters, slug: unacademy }
   - { name: Truecaller, ats: greenhouse, slug: truecaller }
+  - { name: HighRadius, ats: greenhouse, slug: highradius }
 
 startup:
   - { name: FamPay, ats: lever, slug: fampay }
+  - { name: HackerRank, ats: greenhouse, slug: hackerrank }
+  - { name: Composio, ats: ashby, slug: composio }
   - { name: Sarvam AI, ats: ashby, slug: sarvam }
   - { name: Atlan, ats: ashby, slug: atlan }
   - { name: Observe.AI, ats: greenhouse, slug: observeai }
