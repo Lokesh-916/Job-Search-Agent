@@ -42,14 +42,14 @@ class Sender:
                        files={"document": (path.name, fh)})  # fmt: skip
 
     def broadcast(self, chat_ids: list[int], text: str, path: Path | None = None,
-                  pause_s: float = 0.05) -> dict[int, str]:  # fmt: skip
+                  pause_s: float = 0.05, caption: str = "") -> dict[int, str]:  # fmt: skip
         """Send to many chats; returns {chat_id: error} for the ones that failed."""
         failed = {}
         for chat_id in chat_ids:
             try:
                 self.message(chat_id, text)
                 if path:
-                    self.document(chat_id, path)
+                    self.document(chat_id, path, caption)
             except (TelegramError, httpx.HTTPError) as exc:
                 failed[chat_id] = str(exc)[:200]
             time.sleep(pause_s)  # stay far below Telegram's ~30 msg/s limit

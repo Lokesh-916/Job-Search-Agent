@@ -15,6 +15,7 @@ from job_agent.settings import Settings
 
 ROSTER = Path("data/roster.csv")  # roll_no,name (private; never committed)
 CHECK = "Check experience"
+SHEET_CAPTION = "📊 Everything in one sheet: jobs, internships, hackathons and events"
 PICK_MEMORY_DAYS = 14  # a featured big-company role is not featured again for this long
 
 
@@ -119,7 +120,8 @@ def deliver(settings: Settings, store: CommunityStore, chat_ids: list[int] | Non
         approved = [u["telegram_id"] for u in store.users("approved")]
         chat_ids = list(dict.fromkeys(approved + ([int(owner)] if owner else [])))
     targets = chat_ids
-    failed = Sender(token).broadcast(targets, todays_digest(store), latest_workbook(store))
+    failed = Sender(token).broadcast(targets, todays_digest(store), latest_workbook(store),
+                                     caption=SHEET_CAPTION)  # fmt: skip
     for chat_id in targets:
         if chat_id not in failed:
             store.count_digest(chat_id)

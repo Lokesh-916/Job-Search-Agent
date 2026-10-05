@@ -23,8 +23,15 @@ from telegram.constants import ParseMode
 from telegram.error import TelegramError
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
-from job_agent.community.digest import event_line, job_line, merged, upcoming
+from job_agent.community.digest import (
+    MAX_MESSAGE,
+    event_line,
+    featured_events,
+    job_line,
+    merged,
+)
 from job_agent.community.service import (
+    SHEET_CAPTION,
     current,
     db_path,
     deliver,
@@ -190,7 +197,9 @@ def build_app(settings: Settings) -> Application:
             return
         await reply(update, todays_digest(store))
         if path := latest_workbook(store):
-            await update.effective_message.reply_document(path.open("rb"), filename=path.name)
+            with path.open("rb") as fh:
+                await update.effective_message.reply_document(fh, filename=path.name,
+                                                              caption=SHEET_CAPTION)  # fmt: skip
 
     async def listing(update: Update, kind: str) -> None:
         if not await need_member(update):
@@ -204,11 +213,14 @@ def build_app(settings: Settings) -> Application:
             lines = [job_line(r, "pay") for r in interns[:12]]
             title = f"🎓 <b>Paid internships</b> · {len(interns)} open"
         else:
-            soon = upcoming(events, date.today().isoformat())
-            lines = [event_line(e) for e in soon[:12]]
+            soon = featured_events(events, date.today().isoformat(), n=12, per_source=4)
+            lines = [event_line(e) for e in soon]
             title = f"🏆 <b>Hackathons & events</b> · {len(events)} upcoming"
-        await reply(update, "\n".join([title, "", *(lines or ["Nothing yet today."]),
-                                       "", "Full list: /today"])[:4000])  # fmt: skip
+        lines = lines or ["Nothing yet today."]
+        footer = ["", "The full list is in the sheet: /today"]
+        while len("\n".join([title, "", *lines, *footer])) > MAX_MESSAGE and len(lines) > 1:
+            lines.pop()  # drop whole lines; never cut a link in half
+        await reply(update, "\n".join([title, "", *lines, *footer]))
 
     async def jobs(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await listing(update, "jobs")
