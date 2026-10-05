@@ -7,6 +7,7 @@ Admin (the owner's chat id): /users · /pending · /broadcast · /suggestions ·
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import html
 import re
 from datetime import date
@@ -19,6 +20,7 @@ from telegram import (
     Update,
 )
 from telegram.constants import ParseMode
+from telegram.error import TelegramError
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
 from job_agent.community.digest import distinct, event_line, job_line, upcoming
@@ -104,7 +106,18 @@ def build_app(settings: Settings) -> Application:
         return False
 
     # --- registration -------------------------------------------------------------------
+    async def admin_menu(bot) -> None:
+        """Only the coordinator's chat shows the admin commands. Telegram knows that chat
+        only after the coordinator presses Start, so this is retried on /start."""
+        with contextlib.suppress(TelegramError):
+            await bot.set_my_commands(
+                [BotCommand(c, d) for c, d in USER_COMMANDS + ADMIN_COMMANDS],
+                scope=BotCommandScopeChat(owner_id),
+            )
+
     async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        if is_admin(update):
+            await admin_menu(context.bot)
         if member(update):
             await reply(update, "👋 Welcome back!\n\n" + help_text(is_admin(update)))
         else:
@@ -307,11 +320,7 @@ def build_app(settings: Settings) -> Application:
 
     async def post_init(app: Application) -> None:
         await app.bot.set_my_commands([BotCommand(c, d) for c, d in USER_COMMANDS])
-        # Only the coordinator's chat shows the admin commands in its menu.
-        await app.bot.set_my_commands(
-            [BotCommand(c, d) for c, d in USER_COMMANDS + ADMIN_COMMANDS],
-            scope=BotCommandScopeChat(owner_id),
-        )
+        await admin_menu(app.bot)
 
     app = Application.builder().token(token).post_init(post_init).build()
     for name, fn in [("start", start), ("join", join), ("forget", forget), ("today", today),
