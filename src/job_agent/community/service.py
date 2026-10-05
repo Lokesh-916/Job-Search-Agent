@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import csv
-from datetime import date
+import json
+from datetime import date, timedelta
 from pathlib import Path
 
-from job_agent.community.digest import digest_text, write_workbook
+from job_agent.community.digest import big_picks, digest_text, write_workbook
 from job_agent.community.feed import FeedStats, ranked, refresh
 from job_agent.community.store import CommunityStore
 from job_agent.community.telegram import Sender
@@ -14,6 +15,7 @@ from job_agent.settings import Settings
 
 ROSTER = Path("data/roster.csv")  # roll_no,name (private; never committed)
 CHECK = "Check experience"
+PICK_MEMORY_DAYS = 14  # a featured big-company role is not featured again for this long
 
 
 def db_path(settings: Settings) -> Path:
@@ -79,13 +81,31 @@ def latest_workbook(store: CommunityStore) -> Path | None:
 def refresh_and_build(settings: Settings, store: CommunityStore) -> tuple[FeedStats, Path]:
     stats = refresh(settings, store)
     store.set_meta("last_refresh", stats.run_at)
+    store.delete_meta(f"picks:{date.today().isoformat()}")  # re-pick from the fresh data
     return stats, rebuild(settings, store)
+
+
+def todays_picks(store: CommunityStore, jobs: list, interns: list, today: str) -> list:
+    """Today's "Big names" (fixed once chosen, so /today matches the morning message)."""
+    live = {r["key"]: r for r in jobs + interns}
+    chosen = store.get_meta(f"picks:{today}")
+    if chosen is not None:
+        return [live[k] for k in json.loads(chosen) if k in live]
+    since = store.get_meta("last_refresh") or today
+    two_weeks_ago = (date.fromisoformat(today) - timedelta(days=PICK_MEMORY_DAYS)).isoformat()
+    recent = {k for day, keys in store.meta_with_prefix("picks:").items()
+              if day >= two_weeks_ago for k in json.loads(keys)}  # fmt: skip
+    picks = big_picks(jobs, interns, since, recent)
+    store.set_meta(f"picks:{today}", json.dumps([r["key"] for r in picks]))
+    return picks
 
 
 def todays_digest(store: CommunityStore) -> str:
     jobs, interns, events = current(store)
     since = store.get_meta("last_refresh")
-    return digest_text(jobs, interns, events, date.today().isoformat(), new_since=since)
+    today = date.today().isoformat()
+    picks = todays_picks(store, jobs, interns, today)
+    return digest_text(jobs, interns, events, today, new_since=since, picks=picks)
 
 
 def deliver(settings: Settings, store: CommunityStore, chat_ids: list[int] | None = None):

@@ -174,6 +174,15 @@ class CommunityStore:
         with self.db:
             self.db.execute("INSERT OR REPLACE INTO meta VALUES (?, ?)", (key, value))
 
+    def meta_with_prefix(self, prefix: str) -> dict[str, str]:
+        """{key without prefix: value} for every meta key starting with `prefix`."""
+        rows = self.db.execute("SELECT key, value FROM meta WHERE key LIKE ? || '%'", (prefix,))
+        return {r["key"][len(prefix) :]: r["value"] for r in rows}
+
+    def delete_meta(self, key: str) -> None:
+        with self.db:
+            self.db.execute("DELETE FROM meta WHERE key=?", (key,))
+
     def get_meta(self, key: str) -> str | None:
         row = self.db.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
         return row[0] if row else None

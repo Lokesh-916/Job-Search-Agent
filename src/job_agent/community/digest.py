@@ -148,17 +148,55 @@ def per_company(rows: list, cap: int) -> list:
     return out
 
 
-def digest_text(jobs: list, interns: list, events: list, today: str, top: int = 8,
-                new_since: str | None = None) -> str:  # fmt: skip
+BIG_TIERS = ("big_tech", "mnc")
+CLEAR_LEVELS = ("Entry level", "Internship")
+
+
+def big_picks(jobs: list, interns: list, new_since: str, recent: set[str] = frozenset(),
+              n: int = 3) -> list:  # fmt: skip
+    """Up to `n` Big Tech / MNC roles for the top of the message, one per company: new ones
+    first, then ones not featured lately, Big Tech before MNC, clear fresher roles first."""
+    pool = [r for r in distinct(interns + jobs) if r["tier"] in BIG_TIERS]
+    pool.sort(key=lambda r: r["posted_at"] or "", reverse=True)  # newest first, then:
+    pool.sort(key=lambda r: (
+        r["first_seen"] < new_since,
+        r["key"] in recent,
+        BIG_TIERS.index(r["tier"]),
+        r["level"] not in CLEAR_LEVELS,
+    ))  # fmt: skip
+    return per_company(pool, 1)[:n]
+
+
+def pick_line(r) -> str:
+    kind = "Internship" if r["kind"] == "internship" else (r["level"] or "Job")
+    if kind == "Not specified":
+        kind = "Job"
+    return f"{job_line(r, 'pay')} · <i>{html.escape(kind)}</i>"
+
+
+def digest_text(jobs: list, interns: list, events: list, today: str, top: int = 6,
+                new_since: str | None = None, picks: list = ()) -> str:  # fmt: skip
     new_since = new_since or today
     jobs, interns = distinct(ranked(jobs)), distinct(ranked(interns))
-    new_jobs = per_company([r for r in jobs if r["first_seen"] >= new_since] or jobs, 2)
-    new_interns = per_company([r for r in interns if r["first_seen"] >= new_since] or interns, 2)
+    featured = {r["key"] for r in picks}
+    rest_jobs = [r for r in jobs if r["key"] not in featured]
+    rest_interns = [r for r in interns if r["key"] not in featured]
+    new_jobs = per_company([r for r in rest_jobs if r["first_seen"] >= new_since] or rest_jobs, 2)
+    new_interns = per_company(
+        [r for r in rest_interns if r["first_seen"] >= new_since] or rest_interns, 2
+    )
+    fresh = sum(r["first_seen"] >= new_since for r in jobs + interns)
+    big = sum(r["tier"] in BIG_TIERS for r in jobs + interns)
     soon = upcoming(events, today)[:5]
     d = date.fromisoformat(today)
     lines = [
         f"🗞️ <b>Placement Feed · {d.day} {d:%b}</b>",
-        f"{len(jobs)} jobs · {len(interns)} paid internships · {len(events)} events, all in India",
+        f"{len(jobs)} jobs · {len(interns)} paid internships · {len(events)} events, "
+        f"all in India · {big} at Big Tech / MNCs · {fresh} new today",
+    ]
+    if picks:
+        lines += ["", "🏛️ <b>Big names today</b>", *[pick_line(r) for r in picks]]
+    lines += [
         "",
         "💼 <b>Jobs</b>",
         *[job_line(r) for r in new_jobs[:top]],
@@ -169,6 +207,7 @@ def digest_text(jobs: list, interns: list, events: list, today: str, top: int = 
         "🏆 <b>Hackathons & events</b>",
         *[event_line(e) for e in soon],
         "",
-        "📎 Full list with filters in the attached sheet. /suggest to send feedback.",
+        "📎 Full list in the attached sheet (filter by company, city or category).",
+        "/suggest a company or report a bad listing.",
     ]
     return "\n".join(lines)[:4000]

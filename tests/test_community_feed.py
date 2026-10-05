@@ -85,3 +85,66 @@ def test_listing_only_postings_get_their_description(tmp_path, monkeypatch):
             p_.description = ""
         feed.refresh(Settings(), store)  # second run reads the cache
         assert calls == ["wd1", "wd2"]
+
+
+def test_hack2skill_keeps_open_events_only():
+    import httpx
+
+    from job_agent.community.events import hack2skill
+
+    data = {"data": {"flagshipEvents": [
+        {"_id": "1", "title": "AI Builder Cup 2026", "status": "APPROVED",
+         "tags": {"mode": {"value": "HYBRID"}}, "registrationEnd": "2026-10-11T05:00:00Z",
+         "customEventUrl": "https://aibuildercup.com"},
+        {"_id": "2", "title": "Old Hackathon", "status": "APPROVED",
+         "tags": {"mode": {"value": "VIRTUAL"}}, "registrationEnd": "2026-01-01T00:00:00Z"},
+    ], "communityEvents": [
+        {"_id": "3", "title": "Build with AI: Bootcamps", "eventUrl": "bootcamp",
+         "tags": {"mode": {"value": "VIRTUAL"}}, "registrationEnd": "2026-11-30T00:00:00Z"},
+    ]}}  # fmt: skip
+    c = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json=data)))
+    cup, camp = hack2skill(c, today="2026-10-05")
+    assert (cup.kind, cup.mode, cup.deadline, cup.url) == (
+        "Hackathon",
+        "Hybrid",
+        "2026-10-11",
+        "https://aibuildercup.com",
+    )
+    assert camp.kind == "Meetup / workshop" and camp.mode == "Online"
+    assert camp.url == "https://hack2skill.com/event/bootcamp/"
+
+
+def big(key, company, tier="big_tech", first_seen="2026-10-05T08:00", level="Entry level",
+        kind="job", posted="2026-10-01"):  # fmt: skip
+    return {"key": key, "company": company, "title": f"Engineer {key}", "tier": tier,
+            "first_seen": first_seen, "level": level, "kind": kind, "posted_at": posted,
+            "url": "https://x", "location": "Pune", "pay": None, "source": "x"}  # fmt: skip
+
+
+def test_big_picks_prefer_new_then_unfeatured_one_per_company():
+    from job_agent.community.digest import big_picks
+
+    since = "2026-10-05T08:00"
+    rows = [
+        big("a", "Startup", tier="startup"),
+        big("b", "Cisco", first_seen="2026-09-01T08:00"),
+        big("c", "Cisco"), big("d", "Cisco"),
+        big("e", "Visa", tier="mnc", level="Not specified"),
+        big("f", "Intel", first_seen="2026-09-01T08:00"),
+    ]  # fmt: skip
+    assert [r["key"] for r in big_picks(rows, [], since)] == ["c", "e", "f"]  # one per company
+    # Nothing new: the ones featured lately go last.
+    old = [{**r, "first_seen": "2026-09-01T08:00"} for r in rows]
+    assert [r["key"] for r in big_picks(old, [], since, recent={"b", "c"})][:2] == ["d", "f"]
+
+
+def test_todays_picks_are_stable_and_rotate(tmp_path):
+    from job_agent.community.service import todays_picks
+
+    rows = [big(k, f"Co {k}", first_seen="2026-09-01T08:00") for k in "abcdef"]
+    with CommunityStore(tmp_path / "c.db") as store:
+        store.set_meta("last_refresh", "2026-10-05T08:00")
+        first = [r["key"] for r in todays_picks(store, rows, [], "2026-10-05")]
+        assert first == [r["key"] for r in todays_picks(store, rows, [], "2026-10-05")]
+        nxt = [r["key"] for r in todays_picks(store, rows, [], "2026-10-06")]
+        assert len(first) == 3 and not set(first) & set(nxt)
