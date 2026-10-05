@@ -148,7 +148,42 @@ def gdg(client: httpx.Client, pages: int = 8) -> list[Event]:
     return out
 
 
-FETCHERS = {"devfolio": devfolio, "unstop": unstop, "devpost": devpost, "gdg": gdg}
+HACK2SKILL = "https://hack2skill.com/api/v1/innovator/public/event/list"
+H2S_MODE = {"VIRTUAL": "Online", "IN_PERSON": "In person", "HYBRID": "Hybrid"}
+COMPETITION = re.compile(r"hack|challenge|buildathon|datathon|ideathon|cup|wars|league|slingshot",
+                         re.I)  # fmt: skip
+
+
+def hack2skill(client: httpx.Client, today: str | None = None) -> list[Event]:
+    """Hack2skill runs India's big sponsored hackathons (Google, AMD, Snowflake, MongoDB...).
+
+    The public list carries no dates beyond the registration window and no organiser."""
+    from datetime import date
+
+    today = today or date.today().isoformat()
+    resp = client.get(HACK2SKILL)
+    resp.raise_for_status()
+    data = resp.json().get("data") or {}
+    out = []
+    for group, label in (("flagshipEvents", "Hack2skill"), ("communityEvents", "Community")):
+        for e in data.get(group) or []:
+            closes = _date(e.get("registrationEnd"))
+            if not closes or closes < today or e.get("status", "APPROVED") != "APPROVED":
+                continue
+            mode = H2S_MODE.get(((e.get("tags") or {}).get("mode") or {}).get("value"), "")
+            title = e.get("title") or ""
+            out.append(Event(
+                "hack2skill", str(e.get("_id") or e.get("eventUrl")),
+                "Hackathon" if COMPETITION.search(title) else "Meetup / workshop",
+                title, f"{label} · Hack2skill" if label == "Community" else label, mode,
+                "India" if mode != "Online" else "", None, None, closes, "",
+                e.get("customEventUrl") or f"https://hack2skill.com/event/{e.get('eventUrl')}/",
+            ))  # fmt: skip
+    return out
+
+
+FETCHERS = {"devfolio": devfolio, "unstop": unstop, "devpost": devpost, "gdg": gdg,
+            "hack2skill": hack2skill}  # fmt: skip
 
 
 def fetch_all(client: httpx.Client) -> tuple[list[Event], dict[str, str]]:
