@@ -139,7 +139,9 @@ def event_line(e) -> str:
     where = (
         e["mode"]
         if e["mode"] == "Online"
-        else ", ".join(x for x in (e["mode"], (e["city"] or "").split(",")[0][:24]) if x)
+        else ", ".join(
+            x for x in (e["mode"], (e["city"] or "").split(",")[0].split(" (")[0][:24]) if x
+        )
     )
     when = f"starts {day(e['starts'])}" if e["starts"] else ""
     by = f"register by {day(e['deadline'])}" if e["deadline"] else ""

@@ -78,7 +78,8 @@ def gather(settings: Settings) -> tuple[list[tuple[Posting, str]], dict[str, str
         if sec.adzuna_app_id and sec.adzuna_app_key:
             try:
                 found = adzuna.fetch_all(sec.adzuna_app_id, sec.adzuna_app_key, client)
-                out += [(p, tier_of.get(p.company, "other")) for p in found]
+                # Companies we read directly would show up twice (and with an Adzuna link).
+                out += [(p, "other") for p in found if p.company not in tier_of]
             except (httpx.HTTPError, ValueError, KeyError) as exc:
                 errors["adzuna"] = short_error(exc)
     return out, errors
