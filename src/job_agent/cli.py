@@ -508,6 +508,7 @@ def community_refresh() -> None:
                   f"({', '.join(f'{k} {v}' for k, v in stats.fetched.most_common())})")  # fmt: skip
     console.print(f"kept {stats.kept['job']} jobs, {stats.kept['internship']} internships, "
                   f"{stats.events} events · new: {dict(stats.new)}")  # fmt: skip
+    console.print(f"job texts fetched for Workday/SmartRecruiters listings: {stats.described}")
     console.print(f"dropped: {dict(stats.dropped.most_common(6))}")
     for name, err in stats.errors.items():
         console.print(f"  [yellow]{name}[/]: {err}")

@@ -1,8 +1,8 @@
 """Workday career sites (the CXS JSON endpoint every Workday careers page uses).
 
 `slug` is the tenant and `site` is "<cluster>/<site>", e.g. "wd5/NVIDIAExternalCareerSite".
-Only the listing is fetched (title, location, posted); descriptions would need one request
-per job, so classification here is title-based.
+The listing has no job text. `describe()` fetches one job's description; the feed calls it
+only for postings whose title alone can't settle the experience level.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from datetime import date, timedelta
 import httpx
 
 from job_agent.community.models import Company, Posting
+from job_agent.text import html_to_text
 
 PAGE = 20
 MAX_JOBS = 300
@@ -55,9 +56,16 @@ def fetch(company: Company, client: httpx.Client) -> list[Posting]:
                 url=f"{base}/en-US/{site}{path}",
                 location=job.get("locationsText") or "",
                 posted_at=posted_date(job.get("postedOn") or ""),
-                extra={"bullets": job.get("bulletFields") or []},
+                extra={"bullets": job.get("bulletFields") or [],
+                       "detail": f"{base}/wday/cxs/{company.slug}/{site}{path}"},
             ))  # fmt: skip
         offset += PAGE
         if not jobs or offset >= data.get("total", 0):
             break
     return out
+
+
+def describe(posting: Posting, client: httpx.Client) -> str:
+    resp = client.get(posting.extra["detail"], headers={"Accept": "application/json"})
+    resp.raise_for_status()
+    return html_to_text(resp.json()["jobPostingInfo"].get("jobDescription") or "", 6000)

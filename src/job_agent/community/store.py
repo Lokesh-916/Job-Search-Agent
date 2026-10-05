@@ -60,6 +60,11 @@ CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
     value TEXT
 );
+CREATE TABLE IF NOT EXISTS descriptions (
+    key        TEXT PRIMARY KEY,       -- posting key; job text fetched once per posting
+    text       TEXT NOT NULL,
+    fetched_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS suggestions (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     telegram_id INTEGER NOT NULL,
@@ -132,6 +137,15 @@ class CommunityStore:
                ORDER BY COALESCE(deadline, starts, '9999')""",
             (since, today, today),
         ).fetchall()
+
+    def description(self, key: str) -> str | None:
+        row = self.db.execute("SELECT text FROM descriptions WHERE key=?", (key,)).fetchone()
+        return row[0] if row else None
+
+    def save_description(self, key: str, text: str) -> None:
+        with self.db:
+            self.db.execute("INSERT OR REPLACE INTO descriptions VALUES (?, ?, ?)",
+                            (key, text, now_iso()))  # fmt: skip
 
     def set_meta(self, key: str, value: str) -> None:
         with self.db:

@@ -147,6 +147,7 @@ def classify(p: Posting) -> Verdict:
     years = min_years(p.description)
     if years is not None and years >= 2:
         return Verdict(False, f"Needs {years}+ years")
-    if p.source in NO_DESCRIPTION_SOURCES:  # can't read the requirements: flag, don't promote
+    if p.source in NO_DESCRIPTION_SOURCES and not p.description.strip():
+        # can't read the requirements: flag, don't promote
         return Verdict(True, "Experience unknown", "job", "Check experience", category)
     return Verdict(True, "Experience not stated", "job", "Not specified", category)

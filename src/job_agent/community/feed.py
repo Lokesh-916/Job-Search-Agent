@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -13,7 +14,7 @@ from job_agent.community.classify import classify
 from job_agent.community.events import fetch_all as fetch_events
 from job_agent.community.models import Posting, load_companies
 from job_agent.community.sources import adzuna, unstop
-from job_agent.community.sources.registry import USER_AGENT, fetch_all
+from job_agent.community.sources.registry import DESCRIBERS, USER_AGENT, fetch_all
 from job_agent.community.store import CommunityStore
 from job_agent.settings import Settings
 from job_agent.store import now_iso
@@ -21,6 +22,7 @@ from job_agent.store import now_iso
 COMPANIES = Path("config/companies.yaml")
 OPEN_MARKETPLACES = {"unstop", "adzuna"}  # anyone can post here: demand a stated stipend
 MIN_STIPEND = 5000  # ₹/month for marketplace internships
+MAX_DESCRIPTION_FETCHES = 600  # per run; the cache makes later runs cheap
 TIER_RANK = {"big_tech": 0, "mnc": 1, "unicorn": 2, "startup": 3, "other": 4}
 
 
@@ -32,6 +34,7 @@ class FeedStats:
     new: Counter = field(default_factory=Counter)  # job / internship / event
     dropped: Counter = field(default_factory=Counter)  # reason
     events: int = 0
+    described: int = 0  # job texts fetched for listing-only sources
     errors: dict[str, str] = field(default_factory=dict)
 
 
@@ -76,9 +79,39 @@ def gather(settings: Settings) -> tuple[list[tuple[Posting, str]], dict[str, str
     return out, errors
 
 
+def fill_descriptions(postings: list[Posting], store: CommunityStore) -> int:
+    """Fetch job text for listings that have none (cached per posting). Returns fetch count."""
+    for p in postings:
+        if cached := store.description(p.key):
+            p.description = cached
+    todo = [p for p in postings if not p.description][:MAX_DESCRIPTION_FETCHES]
+
+    def one(p: Posting) -> tuple[Posting, str | None]:
+        try:
+            return p, DESCRIBERS[p.source](p, client)
+        except (httpx.HTTPError, ValueError, KeyError):
+            return p, None
+
+    headers = {"User-Agent": USER_AGENT}
+    with (
+        httpx.Client(timeout=30, headers=headers, follow_redirects=True) as client,
+        ThreadPoolExecutor(max_workers=6) as pool,
+    ):
+        results = list(pool.map(one, todo))
+    for p, text in results:
+        if text:
+            p.description = text
+            store.save_description(p.key, text)
+    return sum(1 for _, text in results if text)
+
+
 def refresh(settings: Settings, store: CommunityStore) -> FeedStats:
     stats = FeedStats(run_at=now_iso())
     postings, stats.errors = gather(settings)
+    # Listing-only sources: read the job text when the title can't settle the level.
+    unclear = [p for p, _ in postings
+               if p.source in DESCRIBERS and classify(p).level == "Check experience"]  # fmt: skip
+    stats.described = fill_descriptions(unclear, store)
     for p, tier in postings:
         stats.fetched[p.source] += 1
         v = classify(p)

@@ -20,6 +20,11 @@ FETCHERS: dict[str, Fetcher] = {
     "workday": workday.fetch,
     "amazon": amazon.fetch,
 }
+# Sources whose listings carry no job text; these fetch one posting's description on demand.
+DESCRIBERS: dict[str, Callable[[Posting, httpx.Client], str]] = {
+    "smartrecruiters": smartrecruiters.describe,
+    "workday": workday.describe,
+}
 USER_AGENT = "job-agent-community/0.1 (batch placement feed)"
 
 

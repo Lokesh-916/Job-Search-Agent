@@ -59,3 +59,29 @@ def test_refresh_curates_and_counts(tmp_path, monkeypatch):
             "Paid (amount not listed)",
             "₹15,000–20,000",
         )
+
+
+def test_listing_only_postings_get_their_description(tmp_path, monkeypatch):
+    texts = {"wd1": "We need 5+ years of experience in C++.", "wd2": "Open to fresher graduates."}
+    calls = []
+
+    def describe(posting, client):
+        calls.append(posting.external_id)
+        return texts[posting.external_id]
+
+    raw = [(Posting("workday", "NVIDIA", "wd1", "Software Engineer", "https://x/1",
+                    location="Bengaluru, India"), "big_tech"),
+           (Posting("workday", "NVIDIA", "wd2", "Software Engineer", "https://x/2",
+                    location="Pune, India"), "big_tech")]  # fmt: skip
+    monkeypatch.setattr(feed, "gather", lambda settings: (raw, {}))
+    monkeypatch.setattr(feed, "fetch_events", lambda client: ([], {}))
+    monkeypatch.setitem(feed.DESCRIBERS, "workday", describe)
+    with CommunityStore(tmp_path / "c.db") as store:
+        stats = feed.refresh(Settings(), store)
+        assert stats.described == 2 and stats.dropped["Needs 5+ years"] == 1
+        [row] = store.live_postings(stats.run_at)
+        assert row["level"] == "Entry level"
+        for p_, _ in raw:
+            p_.description = ""
+        feed.refresh(Settings(), store)  # second run reads the cache
+        assert calls == ["wd1", "wd2"]
