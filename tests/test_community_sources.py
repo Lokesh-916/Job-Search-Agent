@@ -48,7 +48,7 @@ def test_unknown_platform_and_http_errors_are_reported_not_raised():
     assert "no fetcher" in fetch_company(co, client({})).error
     broken = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(404)))
     res = fetch_company(Company("Delta", "startup", "lever", "delta"), broken)
-    assert res.postings == [] and "HTTPStatusError" in res.error
+    assert res.postings == [] and "HTTP 404" in res.error
 
 
 def test_curated_list_loads():
