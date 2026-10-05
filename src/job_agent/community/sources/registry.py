@@ -9,7 +9,15 @@ from dataclasses import dataclass
 import httpx
 
 from job_agent.community.models import Company, Posting
-from job_agent.community.sources import amazon, ashby, greenhouse, lever, smartrecruiters, workday
+from job_agent.community.sources import (
+    amazon,
+    ashby,
+    eightfold,
+    greenhouse,
+    lever,
+    smartrecruiters,
+    workday,
+)
 
 Fetcher = Callable[[Company, httpx.Client], list[Posting]]
 FETCHERS: dict[str, Fetcher] = {
@@ -19,11 +27,13 @@ FETCHERS: dict[str, Fetcher] = {
     "smartrecruiters": smartrecruiters.fetch,
     "workday": workday.fetch,
     "amazon": amazon.fetch,
+    "eightfold": eightfold.fetch,
 }
 # Sources whose listings carry no job text; these fetch one posting's description on demand.
 DESCRIBERS: dict[str, Callable[[Posting, httpx.Client], str]] = {
     "smartrecruiters": smartrecruiters.describe,
     "workday": workday.describe,
+    "eightfold": eightfold.describe,
 }
 USER_AGENT = "job-agent-community/0.1 (batch placement feed)"
 

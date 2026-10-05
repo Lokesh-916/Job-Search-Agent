@@ -117,3 +117,24 @@ def test_source_errors_never_carry_urls():
     exc = httpx.HTTPStatusError("boom", request=req, response=httpx.Response(503, request=req))
     assert short_error(exc) == "HTTP 503 from api.adzuna.com"
     assert "SECRET" not in short_error(httpx.ConnectError("x", request=req))
+
+
+def test_eightfold_pages_and_describes():
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "position_details" in request.url.path:
+            return httpx.Response(200, json={"data": {"jobDescription": "<p>0-1 years</p>"}})
+        start = int(request.url.params["start"])
+        positions = [{"id": start + i, "name": f"Software Engineer {start + i}",
+                      "locations": ["India, Telangana, Hyderabad"], "postedTs": "1790965800",
+                      "positionUrl": f"/careers/job/{start + i}"} for i in range(10)]  # fmt: skip
+        return httpx.Response(200, json={"data": {"positions": positions[: 15 - start],
+                                                  "count": 15}})  # fmt: skip
+
+    from job_agent.community.sources import eightfold
+
+    c = httpx.Client(transport=httpx.MockTransport(handler))
+    co = Company("Microsoft", "big_tech", "eightfold", "microsoft.com", site="careers.ms.test")
+    posts = eightfold.fetch(co, c)
+    assert len(posts) == 15 and posts[0].url == "https://careers.ms.test/careers/job/0"
+    assert posts[0].location == "India, Telangana, Hyderabad" and posts[0].posted_at
+    assert eightfold.describe(posts[0], c) == "0-1 years"
