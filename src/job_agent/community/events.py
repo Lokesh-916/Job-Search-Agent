@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import httpx
 
 from job_agent.community.classify import INDIA
+from job_agent.community.sources.registry import short_error
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/153", "Accept": "application/json"}
 
@@ -156,5 +157,5 @@ def fetch_all(client: httpx.Client) -> tuple[list[Event], dict[str, str]]:
         try:
             events += fn(client)
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
-            errors[name] = f"{type(exc).__name__}: {exc}"[:200]
+            errors[name] = short_error(exc)
     return events, errors

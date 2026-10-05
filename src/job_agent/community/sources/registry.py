@@ -28,6 +28,15 @@ DESCRIBERS: dict[str, Callable[[Posting, httpx.Client], str]] = {
 USER_AGENT = "job-agent-community/0.1 (batch placement feed)"
 
 
+def short_error(exc: Exception) -> str:
+    """One-line error without URLs, so API keys in query strings never reach logs or chats."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        return f"HTTP {exc.response.status_code} from {exc.request.url.host}"
+    if isinstance(exc, httpx.RequestError):
+        return f"{type(exc).__name__} reaching {exc.request.url.host}"
+    return f"{type(exc).__name__}: {exc}"[:200]
+
+
 @dataclass
 class SourceResult:
     company: Company
@@ -42,7 +51,7 @@ def fetch_company(company: Company, client: httpx.Client) -> SourceResult:
     try:
         return SourceResult(company, fetcher(company, client))
     except (httpx.HTTPError, ValueError, KeyError) as exc:
-        return SourceResult(company, [], f"{type(exc).__name__}: {exc}"[:300])
+        return SourceResult(company, [], short_error(exc))
 
 
 def fetch_all(companies: list[Company], workers: int = 6) -> list[SourceResult]:

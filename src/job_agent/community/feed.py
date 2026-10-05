@@ -14,7 +14,12 @@ from job_agent.community.classify import classify
 from job_agent.community.events import fetch_all as fetch_events
 from job_agent.community.models import Posting, load_companies
 from job_agent.community.sources import adzuna, unstop
-from job_agent.community.sources.registry import DESCRIBERS, USER_AGENT, fetch_all
+from job_agent.community.sources.registry import (
+    DESCRIBERS,
+    USER_AGENT,
+    fetch_all,
+    short_error,
+)
 from job_agent.community.store import CommunityStore
 from job_agent.settings import Settings
 from job_agent.store import now_iso
@@ -68,14 +73,14 @@ def gather(settings: Settings) -> tuple[list[tuple[Posting, str]], dict[str, str
             try:
                 out += [(p, tier_of.get(p.company, "other")) for p in unstop.fetch(kind, client)]
             except (httpx.HTTPError, ValueError, KeyError) as exc:
-                errors[f"unstop {kind}s"] = f"{type(exc).__name__}: {exc}"[:200]
+                errors[f"unstop {kind}s"] = short_error(exc)
         sec = settings.secrets
         if sec.adzuna_app_id and sec.adzuna_app_key:
             try:
                 found = adzuna.fetch_all(sec.adzuna_app_id, sec.adzuna_app_key, client)
                 out += [(p, tier_of.get(p.company, "other")) for p in found]
             except (httpx.HTTPError, ValueError, KeyError) as exc:
-                errors["adzuna"] = f"{type(exc).__name__}: {exc}"[:200]
+                errors["adzuna"] = short_error(exc)
     return out, errors
 
 

@@ -106,3 +106,14 @@ def test_ashby_and_smartrecruiters_normalise():
         Company("Swiggy", "unicorn", "smartrecruiters", "swiggy"), client(sr)
     )
     assert b.location == "Bengaluru, India" and b.url.endswith("/swiggy/9")
+
+
+def test_source_errors_never_carry_urls():
+    import httpx
+
+    from job_agent.community.sources.registry import short_error
+
+    req = httpx.Request("GET", "https://api.adzuna.com/v1/search?app_key=SECRET")
+    exc = httpx.HTTPStatusError("boom", request=req, response=httpx.Response(503, request=req))
+    assert short_error(exc) == "HTTP 503 from api.adzuna.com"
+    assert "SECRET" not in short_error(httpx.ConnectError("x", request=req))
