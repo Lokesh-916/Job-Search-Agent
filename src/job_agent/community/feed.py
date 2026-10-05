@@ -58,15 +58,28 @@ def _clean_city(city: str) -> str:
 
 
 def gather(settings: Settings) -> tuple[list[tuple[Posting, str]], dict[str, str]]:
-    """All raw postings with their company tier, plus per-source errors."""
+    """All raw postings with their company tier, plus per-source errors (keyed by company
+    name for career boards, by platform otherwise)."""
     companies = load_companies(COMPANIES)
-    tier_of = {c.name: c.tier for c in companies}
+    out, errors = gather_boards(companies)
+    out += gather_platforms(settings, {c.name: c.tier for c in companies}, errors)
+    return out, errors
+
+
+def gather_boards(companies) -> tuple[list[tuple[Posting, str]], dict[str, str]]:
     out: list[tuple[Posting, str]] = []
     errors: dict[str, str] = {}
     for res in fetch_all(companies):
         if res.error:
             errors[res.company.name] = res.error
         out += [(p, res.company.tier) for p in res.postings]
+    return out, errors
+
+
+def gather_platforms(settings: Settings, tier_of: dict[str, str],
+                     errors: dict[str, str]) -> list[tuple[Posting, str]]:  # fmt: skip
+    """Open job platforms (Unstop, Adzuna); errors are added to `errors`."""
+    out: list[tuple[Posting, str]] = []
     headers = {"User-Agent": USER_AGENT}
     with httpx.Client(timeout=30, follow_redirects=True, headers=headers) as client:
         # Unstop jobs only: its internship listings are mostly unpaid or not genuine.
@@ -82,7 +95,7 @@ def gather(settings: Settings) -> tuple[list[tuple[Posting, str]], dict[str, str
                 out += [(p, "other") for p in found if p.company not in tier_of]
             except (httpx.HTTPError, ValueError, KeyError) as exc:
                 errors["adzuna"] = short_error(exc)
-    return out, errors
+    return out
 
 
 def fill_descriptions(postings: list[Posting], store: CommunityStore) -> int:
@@ -114,6 +127,9 @@ def fill_descriptions(postings: list[Posting], store: CommunityStore) -> int:
 def refresh(settings: Settings, store: CommunityStore) -> FeedStats:
     stats = FeedStats(run_at=now_iso())
     postings, stats.errors = gather(settings)
+    # A board that failed today (rate limit, outage) keeps yesterday's listings.
+    for company in stats.errors:
+        store.keep_live(company, stats.run_at)
     # Listing-only sources: read the job text when the title can't settle the level.
     unclear = [p for p, _ in postings
                if p.source in DESCRIBERS and classify(p).level == "Check experience"]  # fmt: skip

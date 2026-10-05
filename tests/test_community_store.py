@@ -102,3 +102,18 @@ def test_batch_roll_rule():
         "",
     ):
         assert not c.roll_allowed(bad), bad
+
+
+def test_failed_board_keeps_its_recent_listings(tmp_path):
+    from job_agent.community.classify import Verdict
+    from job_agent.community.models import Posting
+    from job_agent.community.store import CommunityStore
+
+    with CommunityStore(tmp_path / "c.db") as s:
+        v = Verdict(True, "", "job", "Entry level", "Data")
+        s.upsert_posting(Posting("eightfold", "Microsoft", "1", "SWE", "u"), v, "big_tech",
+                         "2026-10-04T02:30:00+00:00")  # fmt: skip
+        s.upsert_posting(Posting("eightfold", "Microsoft", "2", "Old", "u"), v, "big_tech",
+                         "2026-09-01T02:30:00+00:00")  # fmt: skip
+        s.keep_live("Microsoft", "2026-10-05T02:30:00+00:00")
+        assert [r["title"] for r in s.live_postings("2026-10-05T02:30:00+00:00")] == ["SWE"]

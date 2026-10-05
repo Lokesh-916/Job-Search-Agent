@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -129,6 +130,13 @@ class CommunityStore:
                  e.ends, e.deadline, e.prize, e.url, seen_at, seen_at),
             )  # fmt: skip
         return is_new
+
+    def keep_live(self, company: str, seen_at: str, max_age_days: int = 7) -> None:
+        """Carry a company's recent listings over a failed fetch (not stale ones)."""
+        cutoff = (datetime.fromisoformat(seen_at) - timedelta(days=max_age_days)).isoformat()
+        with self.db:
+            self.db.execute("UPDATE postings SET last_seen=? WHERE company=? AND last_seen>=?",
+                            (seen_at, company, cutoff))  # fmt: skip
 
     def live_postings(self, since: str) -> list[sqlite3.Row]:
         """Postings seen in the latest fetch (last_seen >= since), newest first."""
