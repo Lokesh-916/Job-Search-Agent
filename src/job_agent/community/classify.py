@@ -55,7 +55,8 @@ NON_TECH = re.compile(
 )
 SENIOR = re.compile(
     r"\b(senior|sr\.?|staff|principal|lead|leader|manager|director|head|vp|vice president|architect|"
-    r"chief|distinguished|fellow|expert|specialist|intermediate|mid[- ]level)\b|"
+    r"chief|distinguished|fellow|expert|specialist|intermediate|mid[- ]level|"
+    r"[psl]mts)\b|"  # Salesforce-style principal / senior / lead member of technical staff
     r"\b(II|III|IV|V|[2-5])\s*$|(?-i:\b(?:II|III|IV)\b)|"  # "SDE - Test II, Alexa"
     r"(engineer|developer|development|sde|scientist|analyst|associate)[- ]*(II|III|IV|[2-5])\b",
     re.I,

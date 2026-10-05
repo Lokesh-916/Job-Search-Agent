@@ -139,3 +139,13 @@ def test_eightfold_pages_and_describes():
     assert posts[0].location == "Hyderabad, Telangana, India" and posts[0].posted_at
     assert eightfold._place("India, Multiple Locations, Multiple Locations") == "India"
     assert eightfold.describe(posts[0], c) == "0-1 years"
+
+
+def test_eightfold_backs_off_on_429():
+    from job_agent.community.sources import eightfold
+
+    replies = iter([httpx.Response(429), httpx.Response(200, json={"data": {}})])
+    c = httpx.Client(transport=httpx.MockTransport(lambda r: next(replies)))
+    waits = []
+    assert eightfold._get(c, "https://x/api", {}, sleep=waits.append).status_code == 200
+    assert 5 in waits
