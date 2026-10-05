@@ -23,7 +23,7 @@ from telegram.constants import ParseMode
 from telegram.error import TelegramError
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
-from job_agent.community.digest import distinct, event_line, job_line, upcoming
+from job_agent.community.digest import event_line, job_line, merged, upcoming
 from job_agent.community.service import (
     current,
     db_path,
@@ -196,7 +196,7 @@ def build_app(settings: Settings) -> Application:
         if not await need_member(update):
             return
         jobs, interns, events = current(store)
-        jobs, interns = distinct(jobs), distinct(interns)
+        jobs, interns = merged(jobs), merged(interns)
         if kind == "jobs":
             lines = [job_line(r) for r in jobs[:12]]
             title = f"💼 <b>Jobs</b> · {len(jobs)} open, newest and best-known first"

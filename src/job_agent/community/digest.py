@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import html
 import re
 from collections import Counter
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import xlsxwriter
@@ -14,28 +15,39 @@ from job_agent.community.feed import ranked
 from job_agent.community.models import TIER_LABEL
 
 TIER = {**TIER_LABEL, "other": "📌 Other"}
+SOURCE_LABEL = {
+    "unstop": "Unstop",
+    "adzuna": "Adzuna",
+    "devfolio": "Devfolio",
+    "devpost": "Devpost",
+    "gdg": "Google Developer Groups",
+    "hack2skill": "Hack2skill",
+}  # everything else is the company's own careers page
+NEW = ("New", lambda r, since: "🆕" if r["first_seen"] >= since else "", 6)
+TIER_COL = ("Tier", lambda r, d: TIER.get(r["tier"] or "other", ""), 13)
+SOURCE = ("Source", lambda r, d: SOURCE_LABEL.get(r["source"], "Careers page"), 14)
+NOTES = [("Eligibility", "eligibility", 24), ("Skills", "skills", 30),
+         ("What you'd do", "summary", 50)]  # LLM notes; hidden when not filled  # fmt: skip
 JOB_COLUMNS = [  # (header, row key / callable, width)
-    ("New", lambda r, since: "🆕" if r["first_seen"] >= since else "", 5),
-    ("Company", "company", 20), ("Tier", lambda r, d: TIER.get(r["tier"] or "other", ""), 12),
-    ("Role", "title", 42), ("Category", "category", 18), ("Level", "level", 14),
-    ("Location", "location", 26), ("Pay (if stated)", "pay", 16), ("Posted", "posted_at", 11),
-    ("Apply", "url", 9), ("Eligibility", "eligibility", 22), ("Skills", "skills", 30),
-    ("What you'd do", "summary", 50), ("Source", "source", 13),
+    NEW, ("Company", "company", 20), TIER_COL, ("Role", "title", 44),
+    ("Category", "category", 18), ("Level", "level", 14), ("Location", "location", 30),
+    ("Pay (if stated)", "pay", 16), ("Posted", "posted_at", 12), ("Apply", "url", 9),
+    *NOTES, SOURCE,
 ]  # fmt: skip
 INTERN_COLUMNS = [
-    ("New", lambda r, since: "🆕" if r["first_seen"] >= since else "", 5),
-    ("Company", "company", 22), ("Tier", lambda r, d: TIER.get(r["tier"] or "other", ""), 12),
-    ("Internship", "title", 40), ("Category", "category", 18), ("Location", "location", 24),
-    ("Stipend / month", "pay", 20), ("Apply by", "deadline", 11), ("Posted", "posted_at", 11),
-    ("Apply", "url", 9), ("Eligibility", "eligibility", 22), ("Skills", "skills", 30),
-    ("What you'd do", "summary", 50), ("Source", "source", 11),
+    NEW, ("Company", "company", 20), TIER_COL, ("Internship", "title", 44),
+    ("Category", "category", 18), ("Location", "location", 30), ("Stipend / month", "pay", 20),
+    ("Apply by", "deadline", 12), ("Posted", "posted_at", 12), ("Apply", "url", 9),
+    *NOTES, SOURCE,
 ]  # fmt: skip
 EVENT_COLUMNS = [
-    ("Name", "name", 40), ("Organizer", "organizer", 26), ("Mode", "mode", 10),
-    ("City / venue", "city", 28), ("Starts", "starts", 11), ("Ends", "ends", 11),
-    ("Register by", "deadline", 11), ("Prizes", "prize", 20), ("Link", "url", 9),
-    ("Source", "source", 10),
+    ("Name", "name", 44), ("Organizer", "organizer", 28), ("Mode", "mode", 11),
+    ("City / venue", "city", 30), ("Starts", "starts", 12), ("Ends", "ends", 12),
+    ("Register by", "deadline", 12), ("Prizes", "prize", 20), ("Link", "url", 9), SOURCE,
 ]  # fmt: skip
+DATES = {"Posted", "Starts", "Ends", "Register by", "Apply by"}
+LINKS = {"Apply": "Apply ↗", "Link": "Open ↗"}
+INK, MUTED, ACCENT = "#14161f", "#5d6275", "#2b37a8"
 
 
 def _value(row, spec, today: str):
@@ -45,56 +57,128 @@ def _value(row, spec, today: str):
     return row[spec] if spec in row.keys() else ""  # noqa: SIM118
 
 
+def merged(rows: list) -> list:
+    """One row per company + role; a role posted for several cities lists them all."""
+    out: dict[tuple[str, str], dict] = {}
+    for r in rows:
+        key = (r["company"], r["title"].strip().lower())
+        if key not in out:
+            out[key] = dict(r)
+            continue
+        places = out[key]["location"].split("; ")
+        for place in (r["location"] or "").split("; "):
+            if place and place not in places:
+                places.append(place)
+        out[key]["location"] = "; ".join(p for p in places if p)
+    return list(out.values())
+
+
 def write_workbook(path: Path, jobs: list, interns: list, events: list, today: str,
-                   check: list = (), new_since: str | None = None) -> Path:  # fmt: skip
+                   check: list = (), new_since: str | None = None,
+                   picks: list = ()) -> Path:  # fmt: skip
     """`new_since`: postings first seen at/after this timestamp are marked new."""
     new_since = new_since or today
+    jobs, interns, check = merged(jobs), merged(interns), merged(check)
     path.parent.mkdir(parents=True, exist_ok=True)
     wb = xlsxwriter.Workbook(str(path), {"strings_to_urls": False})
-    head = wb.add_format({"bold": True, "font_color": "white", "bg_color": "#2b37a8",
-                          "text_wrap": True, "valign": "vcenter"})  # fmt: skip
-    link = wb.add_format({"font_color": "#0563C1", "underline": 1})
-    title = wb.add_format({"bold": True, "font_size": 16})
-    bold = wb.add_format({"bold": True})
+    base = {"font_name": "Calibri", "font_size": 11, "valign": "vcenter"}
+    fmt = {
+        "head": wb.add_format({**base, "bold": True, "font_color": "white", "bg_color": ACCENT,
+                               "text_wrap": True}),
+        "link": wb.add_format({**base, "font_color": ACCENT, "underline": 1}),
+        "date": wb.add_format({**base, "num_format": "d mmm yyyy", "align": "left"}),
+        "title": wb.add_format({**base, "bold": True, "font_size": 20, "font_color": INK}),
+        "sub": wb.add_format({**base, "font_color": MUTED, "italic": True}),
+        "section": wb.add_format({**base, "bold": True, "font_size": 12, "font_color": ACCENT,
+                                  "bottom": 1, "bottom_color": "#d6d9f0"}),
+        "label": wb.add_format({**base}),
+        "num": wb.add_format({**base, "bold": True, "align": "right", "num_format": "#,##0"}),
+        "small": wb.add_format({**base, "font_color": MUTED}),
+    }  # fmt: skip
 
     hackathons = [e for e in events if e["kind"] == "Hackathon"]
     meetups = [e for e in events if e["kind"] != "Hackathon"]
+    d = date.fromisoformat(today)
     dash = wb.add_worksheet("📊 Today")
-    dash.set_column(0, 0, 34)
-    dash.set_column(1, 1, 14)
-    dash.write(0, 0, f"Placement feed · {today}", title)
-    rows = [
-        ("💼 Jobs (India, entry level)", len(jobs)),
-        ("   new today", sum(r["first_seen"] >= new_since for r in jobs)),
+    dash.hide_gridlines(2)
+    dash.set_column(0, 0, 2)
+    dash.set_column(1, 1, 46)
+    dash.set_column(2, 2, 12)
+    dash.set_column(3, 3, 60)
+    dash.set_row(1, 30)
+    dash.write(1, 1, f"Placement Feed · {d.day} {d:%B %Y}", fmt["title"])
+    dash.write(2, 1, "Tech jobs, paid internships, hackathons and events in India. "
+                     "Refreshed every morning at 8.", fmt["sub"])  # fmt: skip
+    row = 4
+
+    def section(name: str) -> None:
+        nonlocal row
+        dash.write(row, 1, name, fmt["section"])
+        dash.write_blank(row, 2, None, fmt["section"])
+        row += 1
+
+    section("Today at a glance")
+    glance = [
+        ("💼 Jobs, entry level", len(jobs)),
+        ("🏢 at Big Tech and MNCs", sum(r["tier"] in BIG_TIERS for r in jobs)),
         ("🎓 Paid internships", len(interns)),
-        ("   new today", sum(r["first_seen"] >= new_since for r in interns)),
+        ("🆕 New since yesterday", sum(r["first_seen"] >= new_since for r in jobs + interns)),
         ("🏆 Open hackathons", len(hackathons)),
         ("🎤 Upcoming tech events", len(meetups)),
-        ("🔍 Other openings (check experience)", len(check)),
-        ("", ""),
-        ("Jobs by category", ""),
-        *Counter(r["category"] for r in jobs).most_common(),
-        ("", ""),
-        ("Level 'Not specified' = the posting doesn't say; check before applying.", ""),
-        ("'Check experience' tab: big-company roles whose listing shows no requirements.", ""),
     ]
-    for i, (k, v) in enumerate(rows, start=2):
-        dash.write(i, 0, k, bold if k and not k.startswith("   ") else None)
-        dash.write(i, 1, v)
+    if check:
+        glance.append(("🔍 To check (experience not stated)", len(check)))
+    for label, n in glance:
+        dash.write(row, 1, label, fmt["label"])
+        dash.write_number(row, 2, n, fmt["num"])
+        row += 1
+    if picks:
+        row += 1
+        section("🏛️ Big names today")
+        for r in picks:
+            dash.write_url(row, 1, r["url"], fmt["link"], string=f"{r['company']} · {r['title']}")
+            dash.write(row, 3, short_place(r["location"]), fmt["small"])
+            row += 1
+    row += 1
+    section("Jobs by category")
+    for name, n in Counter(r["category"] for r in jobs).most_common():
+        dash.write(row, 1, name, fmt["label"])
+        dash.write_number(row, 2, n, fmt["num"])
+        row += 1
+    row += 1
+    section("Reading the sheet")
+    notes = (
+        "🆕 marks roles that appeared since yesterday's feed.",
+        "Level 'Not specified': the posting doesn't say. Read it before applying.",
+        "Click a column header's arrow to filter by company, city or category.",
+    )
+    for note in notes:
+        dash.write(row, 1, note, fmt["small"])
+        row += 1
 
     def sheet(name: str, columns, items) -> None:
-        ws = wb.add_worksheet(name)
+        if not items:
+            return
         data = [[_value(r, spec, new_since) for _, spec, _ in columns] for r in items]
-        ws.add_table(0, 0, max(len(data), 1), len(columns) - 1, {
-            "data": data or [[None] * len(columns)], "style": "Table Style Light 9",
-            "columns": [{"header": h, "header_format": head} for h, _, _ in columns],
+        keep = [c for c, col in enumerate(columns)  # drop empty LLM-note columns
+                if col not in NOTES or any(row[c] for row in data)]  # fmt: skip
+        columns = [columns[c] for c in keep]
+        data = [[row[c] for c in keep] for row in data]
+        ws = wb.add_worksheet(name)
+        ws.add_table(0, 0, len(data), len(columns) - 1, {
+            "data": data, "style": "Table Style Light 9",
+            "columns": [{"header": h, "header_format": fmt["head"]} for h, _, _ in columns],
         })  # fmt: skip
+        ws.set_row(0, 22)
         for c, (h, _, width) in enumerate(columns):
             ws.set_column(c, c, width)
-            if h in ("Apply", "Link"):
-                for r, row in enumerate(data, start=1):
-                    if row[c]:
-                        ws.write_url(r, c, row[c], link, string="open")
+            for r, values in enumerate(data, start=1):
+                value = values[c]
+                if h in LINKS and value:
+                    ws.write_url(r, c, value, fmt["link"], string=LINKS[h])
+                elif h in DATES and value:
+                    with contextlib.suppress(ValueError):  # else keep the text as written
+                        ws.write_datetime(r, c, datetime.fromisoformat(value[:10]), fmt["date"])
         ws.freeze_panes(1, 2)
 
     sheet("💼 Jobs", JOB_COLUMNS, jobs)
@@ -168,17 +252,6 @@ def featured_events(events: list, today: str, n: int = 5, per_source: int = 2) -
 MAX_MESSAGE = 4000  # Telegram's limit is 4096; never cut the HTML mid-tag
 
 
-def distinct(rows: list) -> list:
-    """One line per company + title (multi-location postings repeat otherwise)."""
-    seen, out = set(), []
-    for r in rows:
-        key = (r["company"], r["title"].lower())
-        if key not in seen:
-            seen.add(key)
-            out.append(r)
-    return out
-
-
 def upcoming(events: list, today: str) -> list:
     """Events you can still sign up for: registration open, or starting today or later."""
     open_ = [e for e in events if (e["deadline"] and e["deadline"] >= today)
@@ -204,7 +277,7 @@ def big_picks(jobs: list, interns: list, new_since: str, recent: set[str] = froz
               n: int = 3) -> list:  # fmt: skip
     """Up to `n` Big Tech / MNC roles for the top of the message, one per company: new ones
     first, then ones not featured lately, Big Tech before MNC, clear fresher roles first."""
-    pool = [r for r in distinct(interns + jobs) if r["tier"] in BIG_TIERS]
+    pool = [r for r in merged(interns + jobs) if r["tier"] in BIG_TIERS]
     pool.sort(key=lambda r: r["posted_at"] or "", reverse=True)  # newest first, then:
     pool.sort(key=lambda r: (
         r["first_seen"] < new_since,
@@ -225,7 +298,7 @@ def pick_line(r) -> str:
 def digest_text(jobs: list, interns: list, events: list, today: str, top: int = 6,
                 new_since: str | None = None, picks: list = ()) -> str:  # fmt: skip
     new_since = new_since or today
-    jobs, interns = distinct(ranked(jobs)), distinct(ranked(interns))
+    jobs, interns = merged(ranked(jobs)), merged(ranked(interns))
     featured = {r["key"] for r in picks}
     rest_jobs = [r for r in jobs if r["key"] not in featured]
     rest_interns = [r for r in interns if r["key"] not in featured]

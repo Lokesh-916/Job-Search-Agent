@@ -54,7 +54,10 @@ def test_refresh_curates_and_counts(tmp_path, monkeypatch):
         path = write_workbook(tmp_path / "feed.xlsx", jobs, interns, events, today)
         wb = load_workbook(path)
         assert wb.sheetnames == ["📊 Today", "💼 Jobs", "🎓 Internships", "🏆 Hackathons",
-                                 "🎤 Tech events", "🔍 Check experience"]  # fmt: skip
+                                 "🎤 Tech events"]  # empty tabs are left out  # fmt: skip
+        headers = [c.value for c in wb["💼 Jobs"][1]]
+        assert "Skills" not in headers and headers[-1] == "Source"  # no notes yet: hidden
+        assert wb["💼 Jobs"].cell(2, len(headers)).value == "Careers page"
         assert wb["🎓 Internships"].cell(2, 7).value in (
             "Paid (amount not listed)",
             "₹15,000–20,000",
@@ -162,3 +165,13 @@ def test_message_fits_telegram_and_keeps_its_footer():
     assert text.count("<a ") == text.count("</a>")
     assert short_place("India, Telangana, Hyderabad") == "Hyderabad"
     assert short_place("Bangalore, India; Hyderabad, Telangana, India") == "Bangalore +1"
+
+
+def test_merged_lists_every_city_once():
+    from job_agent.community.digest import merged
+
+    rows = [big("1", "Vodafone"), big("2", "Vodafone"), big("3", "Cisco")]
+    rows[1]["key"], rows[1]["title"], rows[1]["location"] = "2", "Engineer 1", "Pune; Delhi"
+    out = merged(rows)
+    assert [r["company"] for r in out] == ["Vodafone", "Cisco"]
+    assert out[0]["location"] == "Pune; Delhi"

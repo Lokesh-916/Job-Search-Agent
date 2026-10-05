@@ -68,7 +68,8 @@ def rebuild(settings: Settings, store: CommunityStore) -> Path:
     today = date.today().isoformat()
     out = settings.paths.data_dir / "community" / f"placement_feed_{today}.xlsx"
     since = store.get_meta("last_refresh") or today
-    write_workbook(out, jobs, interns, events, today, needs_checking(store), since)
+    picks = todays_picks(store, jobs, interns, today)
+    write_workbook(out, jobs, interns, events, today, needs_checking(store), since, picks)
     store.set_meta("last_workbook", str(out))
     return out
 
