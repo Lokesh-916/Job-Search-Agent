@@ -26,6 +26,14 @@ def _date(ts) -> str | None:
         return None
 
 
+def _place(text: str) -> str:
+    """Microsoft writes "India, Telangana, Hyderabad"; read it city first like the others."""
+    parts = [x.strip() for x in text.split(",")]
+    if parts[0] == "India" and len(parts) > 1:
+        parts = [x for x in reversed(parts) if x != "Multiple Locations"] or ["India"]
+    return ", ".join(dict.fromkeys(parts))
+
+
 def fetch(company: Company, client: httpx.Client) -> list[Posting]:
     host, domain = company.site, company.slug
     out: list[Posting] = []
@@ -44,7 +52,7 @@ def fetch(company: Company, client: httpx.Client) -> list[Posting]:
                 external_id=pid,
                 title=(p.get("name") or "").strip(),
                 url=f"https://{host}{p.get('positionUrl') or '/careers/job/' + pid}",
-                location="; ".join(p.get("locations") or p.get("standardizedLocations") or []),
+                location="; ".join(_place(x) for x in p.get("locations") or []),
                 department=p.get("department") or "",
                 posted_at=_date(p.get("postedTs")),
                 extra={"detail": f"https://{host}/api/pcsx/position_details?"

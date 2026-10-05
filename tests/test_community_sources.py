@@ -136,5 +136,6 @@ def test_eightfold_pages_and_describes():
     co = Company("Microsoft", "big_tech", "eightfold", "microsoft.com", site="careers.ms.test")
     posts = eightfold.fetch(co, c)
     assert len(posts) == 15 and posts[0].url == "https://careers.ms.test/careers/job/0"
-    assert posts[0].location == "India, Telangana, Hyderabad" and posts[0].posted_at
+    assert posts[0].location == "Hyderabad, Telangana, India" and posts[0].posted_at
+    assert eightfold._place("India, Multiple Locations, Multiple Locations") == "India"
     assert eightfold.describe(posts[0], c) == "0-1 years"
