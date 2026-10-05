@@ -302,10 +302,9 @@ def digest_text(jobs: list, interns: list, events: list, today: str, top: int = 
     featured = {r["key"] for r in picks}
     rest_jobs = [r for r in jobs if r["key"] not in featured]
     rest_interns = [r for r in interns if r["key"] not in featured]
-    new_jobs = per_company([r for r in rest_jobs if r["first_seen"] >= new_since] or rest_jobs, 2)
-    new_interns = per_company(
-        [r for r in rest_interns if r["first_seen"] >= new_since] or rest_interns, 2
-    )
+    # ranked() puts today's new roles first; quiet days are topped up with the best of the rest
+    new_jobs = per_company(rest_jobs, 2)
+    new_interns = per_company(rest_interns, 2)
     fresh = sum(r["first_seen"] >= new_since for r in jobs + interns)
     big = sum(r["tier"] in BIG_TIERS for r in jobs + interns)
     d = date.fromisoformat(today)
